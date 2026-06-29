@@ -1,14 +1,16 @@
 {
   "name": "VFast by V-Mart",
   "short_name": "VFast",
-  "description": "VFast — 10-Minute grocery delivery by V-Mart Retail Ltd.",
+  "description": "VFast — Quick delivery in 10 minutes by V-Mart Retail Ltd. India only.",
   "start_url": "/",
   "scope": "/",
+  "id": "vfast",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#E4002B",
   "lang": "en-IN",
   "orientation": "portrait",
+  "categories": ["shopping", "food", "lifestyle"],
   "icons": [
     { "src": "/icons/vfast-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/vfast-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }

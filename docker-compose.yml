@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:6
+    container_name: vfast-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - vfast_mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: vfast-backend
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URL: mongodb://mongodb:27017
+      DB_NAME: vfast_marketplace
+      JWT_SECRET: dev_jwt_secret_change_me
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,https://vfast.co.in,https://www.vfast.co.in,https://admin.vfast.co.in"
+      SUPER_ADMIN_EMAIL: super.admin@vfast.local
+      SUPER_ADMIN_PASSWORD: admin123
+      ADMIN_EMAIL: admin@vfast.local
+      ADMIN_PASSWORD: admin123
+      OPS_EMAIL: ops@vfast.local
+      OPS_PASSWORD: ops123
+      SELLER_EMAIL: seller@vfast.local
+      SELLER_PASSWORD: seller123
+      RIDER_EMAIL: rider@vfast.local
+      RIDER_PASSWORD: rider123
+      DEMO_CUSTOMER_PHONE: "+919999999999"
+      SMS_PROVIDER: mock
+    ports:
+      - "8001:8001"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BACKEND_URL: http://localhost:8001
+    container_name: vfast-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  vfast_mongo: {}

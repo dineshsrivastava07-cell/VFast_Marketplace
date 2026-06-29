@@ -1,82 +1,84 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
-.idea/
-.vscode/
-
-# Dependencies
-node_modules/
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# Testing
-/coverage
-
-# Next.js
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
-
-# Production builds
-/build
+# --- Python --- #
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
 dist/
-dist
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+*.log
 
-# Environment files (comprehensive coverage)
-
-*token.json*
-*credentials.json*
-
-# Logs and debug files
-npm-debug.log*
+# --- Node / React / Expo --- #
+node_modules/
+.pnp
+.pnp.js
+coverage/
+build/
+.next/
+out/
+.expo/
+.expo-shared/
+dist/
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
-dump.rdb
+npm-debug.log*
+pnpm-debug.log*
+.eslintcache
 
-# System files
+# --- IDE / OS --- #
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store
-*.pem
+Thumbs.db
 
-# Python
-__pycache__/
-*pyc*
-venv/
-.venv/
+# --- Env files --- #
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+backend/.env
+frontend/.env
+!*.example
 
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
-*.pack
-*.deb
-*.dylib
-
-# Build caches
+# --- Build / temp --- #
+*.bak
+*.tmp
+.tmp/
 .cache/
+tmp/
+*.zip
 
-memory/test_credentials.md
+# --- Backend uploads (don't commit user uploads) --- #
+backend/uploads/*
+!backend/uploads/.gitkeep
 
-# Mobile development
-android-sdk/
+# --- Test reports (Emergent) --- #
+test_reports/
+playwright-report/
+test-results/
+
+# --- Memory / Emergent run artifacts --- #
+.emergent/
+memory/

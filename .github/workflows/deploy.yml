@@ -1,4 +1,4 @@
-name: Deploy
+name: deploy
 
 on:
   workflow_dispatch:
@@ -6,13 +6,55 @@ on:
     branches: [main]
 
 jobs:
-  deploy-info:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Print deploy info
+
+      - name: Build summary
         run: |
-          echo "VFast Marketplace is deployed via the Emergent platform."
-          echo "Backend service: FastAPI (managed by supervisor in the Emergent pod)"
-          echo "Frontend service: React PWA (built via craco, served by Emergent ingress)"
-          echo "To trigger a deploy, use the Deploy button in app.emergent.sh."
+          echo "## VFast deploy on $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: ${{ github.ref_name }}  Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+      # --- Frontend build --- #
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Frontend build
+        working-directory: frontend
+        env:
+          REACT_APP_BACKEND_URL: ${{ secrets.REACT_APP_BACKEND_URL || 'https://api.vfast.co.in' }}
+        run: |
+          yarn install --frozen-lockfile || yarn install
+          yarn build
+
+      - name: Upload frontend artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vfast-frontend-build
+          path: frontend/build
+
+      # --- Backend container (build only — push step is hosting-specific) --- #
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          tags: vfast-backend:${{ github.sha }}
+
+      # --- Trigger Emergent / external deploy webhook (optional) --- #
+      - name: Trigger hosting deploy webhook
+        if: ${{ secrets.DEPLOY_WEBHOOK_URL != '' }}
+        run: |
+          curl -fsS -X POST "${{ secrets.DEPLOY_WEBHOOK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"sha\":\"${{ github.sha }}\",\"ref\":\"${{ github.ref_name }}\"}"
+
+      - name: Notes
+        run: |
+          echo "Frontend artefact uploaded — connect to your hosting provider."
+          echo "Custom domain setup: see docs/DNS_SETUP.md (vfast.co.in via GoDaddy)."
