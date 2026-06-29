@@ -109,20 +109,22 @@ async def create_order(
     await db.carts.delete_one({"user_id": user["id"]})
     order.pop("_id", None)
 
-    # Side-effects: confirmation email + push + live OMS broadcast
-    if user.get("email"):
-        await send_email(
-            user["email"],
-            f"VFast — Order {order['order_no']} confirmed",
-            order_confirmation_html(order["order_no"], order["total"], order["items"],
-                                     user.get("name") or "Customer"),
-            tag="order-confirmation",
-        )
-    device_token = user.get("device_token")
-    if device_token:
-        await send_push(device_token, "Order placed",
-                        f"VFast order {order['order_no']} placed · ETA {order['eta_minutes']} min",
-                        data={"order_no": order["order_no"], "status": initial_status})
+    # Side-effects: confirmation email + push + live OMS broadcast.
+    # send_email/send_push gracefully no-op + emit [MOCK ...] logs when
+    # recipients or provider keys are missing, so we call them unconditionally.
+    await send_email(
+        user.get("email") or "",
+        f"VFast — Order {order['order_no']} confirmed",
+        order_confirmation_html(order["order_no"], order["total"], order["items"],
+                                 user.get("name") or "Customer"),
+        tag="order-confirmation",
+    )
+    await send_push(
+        user.get("device_token") or "",
+        "Order placed",
+        f"VFast order {order['order_no']} placed · ETA {order['eta_minutes']} min",
+        data={"order_no": order["order_no"], "status": initial_status},
+    )
     await broadcast_order_event("order.created", order)
     return order
 

@@ -113,14 +113,18 @@ async def process_rights_request(rid: str, payload: dict, request: Request,
     update = {"status": new_status, "completed_at": now_iso(),
               "completed_by": user.get("email"),
               "resolution": payload.get("resolution", "")}
-    # Erasure → anonymize the user record
+    # Erasure → anonymize the user record with a unique tombstone so the
+    # unique index on email never collides across multiple erasures.
     if req["type"] == "erasure" and new_status == "completed":
+        uid = req["user_id"]
         await db.users.update_one(
-            {"id": req["user_id"]},
-            {"$set": {"name": "Deleted User", "email": None,
-                       "phone": None, "deleted_at": now_iso()}},
+            {"id": uid},
+            {"$set": {"name": "Deleted User",
+                       "email": f"erased+{uid}@vfast.invalid",
+                       "phone": f"erased+{uid}",
+                       "deleted_at": now_iso()}},
         )
-        await db.addresses.delete_many({"user_id": req["user_id"]})
+        await db.addresses.delete_many({"user_id": uid})
         update["erasure_applied"] = True
     await db.rights_requests.update_one({"id": rid}, {"$set": update})
     await log_action(db, user, "dpdp.rights_request.process", "rights_request", rid, update)

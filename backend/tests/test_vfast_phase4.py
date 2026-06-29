@@ -124,35 +124,45 @@ def test_dpdp_breach_log(s, admin_h):
     assert r.json()["severity"] == "low"
 
 
-# ---------- 3. DPDP erasure — anonymize new throw-away customer ----------
-def test_dpdp_erasure_anonymizes_user(s, admin_h):
-    throwaway_phone = f"+91888{int(time.time()) % 10000000:07d}"
+# ---------- 3. DPDP erasure — anonymize new throw-away customers (A and B)
+#             to verify the unique-tombstone fix (no E11000 on 2nd erasure). ---
+def _erase_one(s, admin_h, slot):
+    """Create a fresh OTP user with a unique phone, file erasure, admin processes."""
+    throwaway_phone = f"+918{int(time.time()) % 100000000:08d}{slot}"
     r = s.post(f"{BASE}/api/auth/otp/request", json={"phone": throwaway_phone})
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     code = r.json()["dev_code"]
     r2 = s.post(f"{BASE}/api/auth/otp/verify", json={"phone": throwaway_phone, "code": code})
-    assert r2.status_code == 200
+    assert r2.status_code == 200, r2.text
     tok = r2.json()["token"]
-    uid = r2.json()["user"]["id"]
     th = {"Authorization": f"Bearer {tok}"}
-    # add an address
     s.post(f"{BASE}/api/customer/addresses", headers=th,
            json={"name": "TEST", "phone": throwaway_phone, "line1": "1 TEST",
                  "city": "Delhi", "pincode": "110001", "state": "DL"})
-    # file erasure
     rr = s.post(f"{BASE}/api/dpdp/rights-requests", headers=th,
-                json={"type": "erasure", "note": "TEST erase"})
-    assert rr.status_code == 200
+                json={"type": "erasure", "note": f"TEST erase {slot}"})
+    assert rr.status_code == 200, rr.text
     rid = rr.json()["id"]
-    # admin processes
     pr = s.post(f"{BASE}/api/dpdp/rights-requests/{rid}/process", headers=admin_h,
-                json={"status": "completed", "resolution": "TEST done"})
-    assert pr.status_code == 200, pr.text
-    assert pr.json().get("erasure_applied") is True
-    # Verify via list: locate the user in rights-requests is updated
+                json={"status": "completed", "resolution": f"TEST done {slot}"})
+    assert pr.status_code == 200, pr.text  # <-- previously 500 with E11000
+    body = pr.json()
+    assert body.get("erasure_applied") is True
+    return rid
+
+
+def test_dpdp_erasure_anonymizes_user(s, admin_h):
+    """Erasure of customer A succeeds AND erasure of customer B right after
+    also succeeds — confirms unique-tombstone fix (no users.email_1 dup-key)."""
+    rid_a = _erase_one(s, admin_h, "1")
+    # Sleep briefly so timestamp+slot guarantees a new phone string for user B
+    time.sleep(1)
+    rid_b = _erase_one(s, admin_h, "2")
+
     lst = s.get(f"{BASE}/api/dpdp/rights-requests", headers=admin_h).json()
-    found = [x for x in lst if x["id"] == rid]
-    assert found and found[0]["status"] == "completed"
+    ids = {x["id"]: x for x in lst}
+    assert rid_a in ids and ids[rid_a]["status"] == "completed"
+    assert rid_b in ids and ids[rid_b]["status"] == "completed"
 
 
 # ---------- 4. Wishlist ----------
@@ -285,10 +295,10 @@ def test_mock_sms_log_present(s):
 
 
 def test_mock_email_and_push_log_after_order(s, cust_h):
-    # NOTE: send_email/send_push are gated by user.email/device_token presence in orders.py.
-    # OTP-login customers have no email, so [MOCK EMAIL] won't fire for them.
-    # We assert [MOCK PUSH] fires for any new order if device_token exists, or just verify
-    # broadcast_order_event ran (proxy via WS test). Here we just verify endpoint works.
+    """After fix in orders.py (guards removed), placing an order as an
+    OTP-only user MUST always emit [MOCK EMAIL] and [MOCK PUSH] lines in
+    backend logs because services/email.py and services/push.py log them
+    when recipients/provider keys are missing."""
     pr = s.get(f"{BASE}/api/catalog/products?limit=1").json()
     items = pr if isinstance(pr, list) else (pr.get("items") or [])
     pid = items[0]["id"]
@@ -299,30 +309,22 @@ def test_mock_email_and_push_log_after_order(s, cust_h):
     po = s.post(f"{BASE}/api/orders/", headers=cust_h,
                 json={"address": address, "payment_method": "cod"})
     assert po.status_code == 200, po.text
-    time.sleep(1.0)
-    # Verify [MOCK EMAIL] log was present at least once (from any historic order with email user)
-    log_paths = ["/var/log/supervisor/backend.out.log", "/var/log/supervisor/backend.err.log"]
-    found_email = False
-    for p in log_paths:
-        if os.path.exists(p):
-            with open(p, "r", errors="ignore") as f:
-                content = f.read()[-200000:]
-            if "[MOCK EMAIL]" in content:
-                found_email = True
-                break
-    # This may be False for fresh DB / OTP-only customers — report but don't hard-fail
-    if not found_email:
-        pytest.skip("[MOCK EMAIL] not found - OTP user has no email so send_email is skipped (gating logic in orders.py:113)")
-    time.sleep(1.0)
-    log_paths = ["/var/log/supervisor/backend.out.log", "/var/log/supervisor/backend.err.log"]
+    order_no = po.json().get("order_no") or ""
+
+    # Give the side-effects a moment to flush to log
+    time.sleep(1.5)
+
+    log_paths = ["/var/log/supervisor/backend.out.log",
+                 "/var/log/supervisor/backend.err.log"]
     found_email = found_push = False
     for p in log_paths:
-        if os.path.exists(p):
-            with open(p, "r", errors="ignore") as f:
-                content = f.read()[-100000:]
-            if "[MOCK EMAIL]" in content:
-                found_email = True
-            if "[MOCK PUSH]" in content:
-                found_push = True
-    assert found_email, "No [MOCK EMAIL] in backend logs"
-    assert found_push, "No [MOCK PUSH] in backend logs"
+        if not os.path.exists(p):
+            continue
+        with open(p, "r", errors="ignore") as f:
+            content = f.read()[-300000:]
+        if "[MOCK EMAIL]" in content:
+            found_email = True
+        if "[MOCK PUSH]" in content:
+            found_push = True
+    assert found_email, f"No [MOCK EMAIL] line in backend logs after order {order_no}"
+    assert found_push, f"No [MOCK PUSH] line in backend logs after order {order_no}"
