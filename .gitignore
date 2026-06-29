@@ -53,13 +53,9 @@ pnpm-debug.log*
 Thumbs.db
 
 # --- Env files --- #
-.env
-.env.local
-.env.development
-.env.production
-.env.staging
-backend/.env
-frontend/.env
+# Keep .env files tracked so the Emergent deploy step can substitute
+# managed values (DB URL, JWT secret, etc.) at deploy time. Use
+# .env.example as the template; never commit production secrets here.
 !*.example
 
 # --- Build / temp --- #
@@ -79,6 +75,5 @@ test_reports/
 playwright-report/
 test-results/
 
-# --- Memory / Emergent run artifacts --- #
+# --- Emergent run artifacts --- #
 .emergent/
-memory/
