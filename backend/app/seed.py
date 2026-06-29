@@ -470,4 +470,42 @@ async def run_seed(db):
             "scope": "global", "active": True, "created_at": now_iso(),
         })
 
+    # Default dark store + zone + demo rider + global settings
+    if await db.dark_stores.count_documents({}) == 0:
+        await db.dark_stores.insert_one({
+            "id": new_id(), "name": "Delhi-NCR Hub Store",
+            "address": "Sector 18, Noida, Uttar Pradesh",
+            "pincodes": ["110001", "110016", "110024", "201301", "122001"],
+            "manager_email": os.environ.get("OPS_EMAIL", "ops@vfast.local"),
+            "operating_hours": "08:00-23:30", "active": True,
+            "created_at": now_iso(),
+        })
+
+    if await db.zones.count_documents({}) == 0:
+        store = await db.dark_stores.find_one({}, {"_id": 0, "id": 1})
+        await db.zones.insert_one({
+            "id": new_id(), "name": "Delhi-NCR Core",
+            "pincodes": ["110001", "110016", "110024"],
+            "store_id": store["id"] if store else None,
+            "active": True, "created_at": now_iso(),
+        })
+
+    # Backfill reorder_level on existing products
+    await db.products.update_many({"reorder_level": {"$exists": False}}, {"$set": {"reorder_level": 5}})
+
+    # Ensure default settings doc exists
+    if not await db.settings.find_one({"id": "global"}):
+        await db.settings.insert_one({
+            "id": "global",
+            "settings": {
+                "app_name": "VFast", "support_email": "support@vfast.local",
+                "support_phone": "+91 1800-000-000", "dpo_email": "dpo@vmart.local",
+                "dpo_phone": "+91 1800-000-001", "maintenance_mode": False,
+            },
+            "flags": {
+                "cod_enabled": True, "upi_qr_enabled": True, "referrals_enabled": False,
+                "wallet_enabled": False, "hindi_toggle_enabled": True, "dpdp_consent_banner": True,
+            },
+        })
+
     log.info("FMCG seed complete: %d products, %d categories", await db.products.count_documents({}), await db.categories.count_documents({}))

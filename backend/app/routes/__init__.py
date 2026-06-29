@@ -5,6 +5,7 @@ from .cart import router as cart_router
 from .orders import router as orders_router
 from .payments import router as payments_router
 from .admin import router as admin_router
+from .admin_more import router as admin_more_router
 from .misc import router as misc_router
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "orders_router",
     "payments_router",
     "admin_router",
+    "admin_more_router",
     "misc_router",
 ]

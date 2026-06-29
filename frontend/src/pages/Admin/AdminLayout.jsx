@@ -1,17 +1,23 @@
 import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package, Store, Bike, Shield, FileSearch, Settings as SettingsIcon, Boxes } from "lucide-react";
 import { Helmet } from "../../components/Helmet";
 
 const NAV = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/admin/orders", icon: ShoppingBag, label: "Orders (OMS)" },
   { to: "/admin/payment-queue", icon: ListChecks, label: "Payment verification" },
-  { to: "/admin/pincodes", icon: MapPin, label: "Serviceable PINs" },
-  { to: "/admin/qr-codes", icon: QrCode, label: "UPI QR codes" },
-  { to: "/admin/products", icon: Package, label: "Catalog" },
-  { to: "/admin/users", icon: Users, label: "Users & roles" },
+  { to: "/admin/catalog", icon: Package, label: "Catalog" },
+  { to: "/admin/inventory", icon: Boxes, label: "Inventory" },
+  { to: "/admin/pincodes", icon: MapPin, label: "Serviceability" },
+  { to: "/admin/stores", icon: Store, label: "Stores & zones" },
+  { to: "/admin/riders", icon: Bike, label: "Riders" },
+  { to: "/admin/qr-codes", icon: QrCode, label: "UPI QR" },
+  { to: "/admin/rbac", icon: Shield, label: "Roles & permissions" },
+  { to: "/admin/audit", icon: FileSearch, label: "Audit log" },
+  { to: "/admin/users", icon: Users, label: "Users" },
+  { to: "/admin/settings", icon: SettingsIcon, label: "Settings" },
 ];
 
 export default function AdminLayout() {

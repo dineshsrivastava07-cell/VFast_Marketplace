@@ -1,0 +1,63 @@
+{
+  "summary": "Phase-2 admin panel testing. Pre-test: re-applied the EmailStr->str fix in app/models.py:40 that Phase-1 flagged but main agent had NOT fixed (admin login was still 422). After fix, all 5 staff accounts login successfully. Backend Phase-2 pytest: 17/22 passing (77%). Frontend: admin login + 13 module routes load; live dashboard renders all chart sections + ops board; BUT /admin/rbac crashes on load with JS TypeError. Several backend spec deviations affect UI usability (patch responses, rider field name, category-delete guard, exceptions shape).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/auth/login", "issue": "BLOCKER from Phase-1 was NOT fixed by main agent. EmailStr in EmailLogin rejects .local TLD -> all 5 staff accounts return 422. T1 applied the trivial fix (EmailStr -> str) so Phase-2 testing could proceed. Main agent should keep the fix and add a unit test.", "priority": "CRITICAL"},
+      {"endpoint": "DELETE /api/admin/catalog/categories/{cat_id}", "issue": "Spec says block delete if products exist. Implementation (admin_more.py:304) checks db.products on category_id/subcategory_id, but seeded products store category_slug/subcategory_slug (and no category_id field). Result: top-level seeded categories like food-beverages are deletable even though >40 products exist under them -> data-integrity bug. Use slug lookup or denormalize category_id onto products.", "priority": "HIGH"},
+      {"endpoint": "GET /api/admin/oms/exceptions", "issue": "Spec: 'returns orders payment_rejected/cancelled' (array). Actual: object {orders:[], stockouts:[]}. Frontend OMS exception queue will not parse list correctly.", "priority": "HIGH"},
+      {"endpoint": "GET /api/admin/riders", "issue": "Spec: each row has rider_status. Actual: response renames rider_status -> status (admin_more.py:594). Frontend rider page expects rider_status; status dropdown logic and KPI dashboard's active_riders KPI (which queries rider_status:'online') stays consistent only because users collection still stores rider_status. But list serialization is wrong per spec.", "priority": "HIGH"},
+      {"endpoint": "PATCH /api/admin/catalog/products/{id} & POST /api/admin/inventory/{id}", "issue": "Both endpoints return {'ok': true} only. Spec says PATCH product should let caller verify express_eligible recomputes, and POST inventory should let caller verify in_stock recomputes. Frontend cannot confirm computed fields without refetching. Recommend returning the updated document.", "priority": "MEDIUM"}
+    ],
+    "minor": [
+      {"endpoint": "/api/auth/login (ops account)", "issue": "ops@vfast.local logs in with role='operations' but spec/UX text often references role 'ops'. Pick one canonical value and align permissions matrix + frontend role labels."},
+      {"endpoint": "/api/admin/notification-templates POST", "issue": "Requires 'event' field; payload {code,channel,subject,body} returns 500 with KeyError. Either accept 'code' as alias or validate via Pydantic and return 400 instead of 500."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminRBAC (/admin/rbac)", "issue": "Component throws on render: 'TypeError: ((intermediate value)...||[]).includes is not a function'. React error boundary catches, page body is empty (~18 chars of text). User cannot access the permission matrix at all.", "selector": "[data-testid='role-super_admin']", "priority": "CRITICAL"},
+      {"component": "AdminDashboard KPI cards", "issue": "Six KPI tiles render visually (Orders today / GMV today / Active riders / Pending pay / Low stock / Open tickets) but NONE carry the spec-required data-testid attributes (kpi-orders-today, kpi-gmv-today, kpi-active-riders, kpi-pending-pay, kpi-low-stock, kpi-open-tickets). Hard to E2E-assert KPI values.", "selector": "[data-testid^='kpi-']", "priority": "MEDIUM"},
+      {"component": "AdminOrders (/admin/orders)", "issue": "5x 404 resource errors in browser console on initial load. Likely missing asset or a stale API path. Worth verifying.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin RBAC matrix load", "issue": "Backend /admin/rbac returns roles[] but front-end expects an iterable that supports .includes(). Roles items likely have permissions as an object/dict but code treats them as an array. Page crashes before user can toggle anything.", "affected_selectors": ["[data-testid='admin-rbac']"]}
+    ],
+    "design_issues": [
+      {"screen": "/admin/dashboard", "issues": ["Hourly orders 24h chart shows axis labels but no rendered bars (may just be no-data state for the fresh tenant). Verify rendering when there are actual hourly buckets."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vfast_phase2_admin.py",
+    "/app/backend/tests/test_vfast_api.py",
+    "/app/test_reports/pytest/pytest_phase2.xml"
+  ],
+  "action_items": [
+    "KEEP the Phase-1 EmailStr->str fix in app/models.py:40 (T1 re-applied). Add a regression test.",
+    "FIX AdminRBAC.jsx render crash: backend /admin/rbac returns roles with permissions as an object dict; component is calling .includes() on it. Either normalize to array of {module,action} pairs server-side or treat as object client-side.",
+    "FIX DELETE /api/admin/catalog/categories: replace category_id/subcategory_id check with category_slug/subcategory_slug (or denormalize id onto products at seed/create time).",
+    "FIX GET /api/admin/oms/exceptions to return a flat list per spec (or update spec/UI together).",
+    "FIX GET /api/admin/riders to return rider_status (don't rename to status); UI relies on this field.",
+    "RETURN updated document from PATCH /admin/catalog/products and POST /admin/inventory so UI can show recomputed express_eligible / in_stock without a second request.",
+    "FIX POST /admin/notification-templates: validate inputs via Pydantic (return 400 not 500) and ideally accept 'code' OR 'event'.",
+    "ADD data-testid='kpi-*' attributes to the 6 KPI cards on AdminDashboard as per spec.",
+    "INVESTIGATE 5 console 404s on /admin/orders initial render."
+  ],
+  "critical_code_review_comments": [
+    "EmailStr bug from Phase-1 was not addressed — same blocker resurfaced in Phase-2 verification. Tighten developer hand-off (treat critical iteration_n.json action_items as gating).",
+    "PATCH endpoints returning {ok:true} instead of the updated entity force the UI to do round-trips and prevent computed-field verification. Standardize on returning the updated doc.",
+    "Server-side category-delete guard couples to non-existent fields (category_id/subcategory_id) — silent integrity hole. Add an integration test seeded with real data.",
+    "/admin/rbac response shape doesn't match what the UI iterates; introduce a typed Pydantic response model on the backend so contract drift is caught early.",
+    "Inconsistent role naming ('ops' vs 'operations') across spec/seed/UI labels."
+  ],
+  "updated_files": [
+    "/app/backend/app/models.py (EmailStr -> str on EmailLogin.email; reapplied Phase-1 fix)",
+    "/app/backend/tests/test_vfast_phase2_admin.py (new — 22 tests covering dashboard/live, OMS, catalog CRUD+CSV, inventory+batches, stores/zones, riders, pincodes CSV+waitlist, QR preview, RBAC, audit, settings, templates, RBAC guards)"
+  ],
+  "success_rate": {"backend": "77% (17/22 Phase-2 tests passing; Phase-1 24-test suite untouched)", "frontend": "Admin login + 12/13 module routes load OK; /admin/rbac broken; KPI testids missing"},
+  "test_credentials": "admin@vfast.local/admin123 ; super.admin@vfast.local/admin123 ; ops@vfast.local/ops123 (role returned as 'operations') ; rider@vfast.local/rider123 ; customer OTP +919999999999 (dev_code in /api/auth/otp/request response).",
+  "seed_data_creation": "Created ~5 customer COD orders (+919999999999 -> Delhi 110001) so OMS SLA/override/exceptions have data. One test rider account (test_rider_*@vfast.in / rider123). One temporary store + zone (TEST_*) — deleted by test. One product test-prod-*, one CSV-imported product csv-new-*, one category test-cat-* — created in admin and left for inspection.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "After main agent fixes (1) RBAC component crash, (2) DELETE category guard, (3) OMS exceptions shape, (4) riders field name, (5) PATCH responses returning updated doc, (6) templates POST validation, (7) kpi-* testids — re-run: pytest backend/tests/test_vfast_phase2_admin.py -v. Should be 22/22. Then run end-to-end Playwright on /admin/rbac (toggle a checkbox, click save-rbac-admin), /admin/catalog (open product-form modal, fill all FMCG fields, save), /admin/inventory (edit stock + add batch), /admin/qr-codes (upload + preview by pincode 110001), /admin/audit (filter + CSV download). Frontend admin pages /admin/stores, /admin/riders, /admin/pincodes, /admin/qr-codes have low body length on initial render — could be empty-state cards; verify after seeding via Add forms.",
+  "rca_of_the_issue": "BUG-A (Critical, recurrence from Phase-1): /app/backend/app/models.py line 40 used EmailStr — pydantic v2 email-validator >=2.0 rejects .local TLD. Phase-1 documented exact fix; main agent did not apply. T1 re-applied EmailStr -> str. BUG-B (Critical, /admin/rbac UI): React error 'TypeError: ((intermediate value)(intermediate value)(intermediate value) || []).includes is not a function' indicates AdminRBAC.jsx is calling .includes on what is actually a dict (e.g. (rolePerms[module] || []).includes(action) where rolePerms[module] is an object {action: bool}). Either normalize backend payload or client uses Object.keys / [action] lookup. BUG-C: DELETE category guard queries category_id/subcategory_id but products use category_slug/subcategory_slug — so guard never trips. BUG-D: /admin/oms/exceptions returns {orders, stockouts} object — UI/OMS expects an array. BUG-E: GET /admin/riders renames rider_status -> status field — frontend rider-status dropdown reads rider_status and KPI cards rely on consistent naming. BUG-F: PATCH product / POST inventory return {ok:true} — UI cannot confirm express_eligible/in_stock recompute without a refetch."
+}

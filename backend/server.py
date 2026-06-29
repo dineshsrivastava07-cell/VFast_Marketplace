@@ -24,6 +24,7 @@ from app.routes import (  # noqa: E402
     orders_router,
     payments_router,
     admin_router,
+    admin_more_router,
     misc_router,
 )
 from app.seed import run_seed  # noqa: E402
@@ -48,6 +49,7 @@ for router in [
     orders_router,
     payments_router,
     admin_router,
+    admin_more_router,
     misc_router,
 ]:
     app.include_router(router)

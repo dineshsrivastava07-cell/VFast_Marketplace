@@ -37,7 +37,7 @@ class OTPVerify(BaseModel):
 
 
 class EmailLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 

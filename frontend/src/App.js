@@ -30,6 +30,13 @@ import AdminQR from "./pages/Admin/AdminQR";
 import AdminPaymentQueue from "./pages/Admin/AdminPaymentQueue";
 import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminUsers from "./pages/Admin/AdminUsers";
+import AdminCatalog from "./pages/Admin/AdminCatalog";
+import AdminInventory from "./pages/Admin/AdminInventory";
+import AdminStores from "./pages/Admin/AdminStores";
+import AdminRiders from "./pages/Admin/AdminRiders";
+import AdminRBAC from "./pages/Admin/AdminRBAC";
+import AdminAudit from "./pages/Admin/AdminAudit";
+import AdminSettings from "./pages/Admin/AdminSettings";
 
 function StoreShell({ children }) {
   return (
@@ -72,6 +79,13 @@ function App() {
                     <Route path="qr-codes" element={<AdminQR />} />
                     <Route path="payment-queue" element={<AdminPaymentQueue />} />
                     <Route path="products" element={<AdminProducts />} />
+                    <Route path="catalog" element={<AdminCatalog />} />
+                    <Route path="inventory" element={<AdminInventory />} />
+                    <Route path="stores" element={<AdminStores />} />
+                    <Route path="riders" element={<AdminRiders />} />
+                    <Route path="rbac" element={<AdminRBAC />} />
+                    <Route path="audit" element={<AdminAudit />} />
+                    <Route path="settings" element={<AdminSettings />} />
                     <Route path="users" element={<AdminUsers />} />
                   </Route>
 
