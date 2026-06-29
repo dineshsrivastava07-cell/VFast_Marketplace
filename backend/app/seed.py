@@ -140,7 +140,7 @@ def _p(slug, name, brand, cat, sub, image, price, mrp, pack_size, unit_value, un
         "shelf_life_days": shelf_life_days,
         "nutrition_per_100": nutrition,  # dict or None
         "express_eligible": eta <= 15,
-        "description": desc or f"{brand} {name} — quality FMCG product delivered fresh by VFast.",
+        "description": desc or f"{brand} {name} — quality essential delivered fresh by VFast.",
         "created_at": now_iso(),
     }
 
@@ -372,7 +372,7 @@ PINCODES = [
 ]
 
 BANNERS = [
-    {"id": new_id(), "title": "10-Minute Delivery", "subtitle": "Daily essentials & FMCG — delivered fast.",
+    {"id": new_id(), "title": "Quick delivery in 10 Minutes", "subtitle": "Daily essentials delivered fast to your door.",
      "image": "https://images.pexels.com/photos/6868801/pexels-photo-6868801.jpeg",
      "cta": "Shop now", "link": "/c/food-beverages"},
     {"id": new_id(), "title": "Save big on staples",

@@ -41,7 +41,7 @@ export default function Home() {
               Delivery to {pincode || "your door"}
             </span>
             <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-display font-extrabold tracking-tight text-gray-900">
-              FMCG in <span className="text-[#E4002B]">10 minutes</span>.
+              Quick delivery in <span className="text-[#E4002B]">10 Minutes</span>
             </h1>
             <p className="mt-3 text-gray-600 max-w-md">
               Atta, oil, milk, snacks, personal care & home essentials — delivered fast across India by VFast, a V-Mart Retail Ltd. company.
