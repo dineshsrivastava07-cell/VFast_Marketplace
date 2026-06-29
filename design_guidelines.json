@@ -1,0 +1,233 @@
+{
+  "theme": "light",
+  "archetype": "High-Contrast Functional & Organic Approachable (Quick-Commerce)",
+  "brand": {
+    "name": "VFast by V-Mart",
+    "short_name": "VFast",
+    "logo_text": "V MART",
+    "primary_color": "#E4002B"
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#E4002B",
+      "hover": "#C90025",
+      "light": "#FDE6EA",
+      "foreground": "#FFFFFF"
+    },
+    "background": "#FFFFFF",
+    "surface": "#F9FAFB",
+    "text": {
+      "primary": "#111827",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF"
+    },
+    "status": {
+      "success": "#16A34A",
+      "success_bg": "#DCFCE7",
+      "warning": "#F59E0B",
+      "error": "#DC2626"
+    },
+    "category_tints": {
+      "fruits_veg": "#ECFDF5",
+      "dairy": "#EFF6FF",
+      "snacks": "#FEFCE8",
+      "beverages": "#F5F3FF",
+      "instant_food": "#FFF1F2",
+      "personal_care": "#F0FDF4"
+    },
+    "border": "#F3F4F6"
+  },
+  "typography": {
+    "fonts": {
+      "display": "Outfit, sans-serif",
+      "body": "Plus Jakarta Sans, sans-serif"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight font-bold",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-semibold",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm leading-snug",
+      "price": "text-lg sm:text-xl font-bold tracking-tight text-gray-900 font-display",
+      "mrp": "text-sm text-gray-400 line-through font-display"
+    }
+  },
+  "spacing_and_layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "section_gap": "gap-8 sm:gap-12",
+    "grid": {
+      "categories": "grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4",
+      "products": "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6"
+    },
+    "mobile_first": true
+  },
+  "components": {
+    "header": {
+      "layout": "Sticky top, z-50, bg-white/90 backdrop-blur-md border-b border-gray-100 py-3",
+      "elements": "Asymmetric layout: Left features Location Pill ('Delivery to Home - 10 MIN' badge). Center/Bottom dominates with Universal Search. Right has i18n toggle and Profile."
+    },
+    "delivery_pill": {
+      "style": "Inline-flex items-center gap-1.5 text-sm font-bold bg-gray-100 text-gray-800 px-3 py-1.5 rounded-lg",
+      "badge": "bg-[#E4002B] text-white text-[10px] uppercase px-1.5 py-0.5 rounded-md"
+    },
+    "category_tile": {
+      "style": "Rounded-xl overflow-hidden cursor-pointer transition-transform hover:-translate-y-1 relative h-28 sm:h-32",
+      "background": "Use category_tints mapping",
+      "image": "Absolute bottom-0 right-0 w-[70%] h-auto object-contain drop-shadow-md",
+      "text": "Absolute top-2 left-2 right-2 font-semibold text-sm text-gray-800 leading-tight"
+    },
+    "product_card": {
+      "style": "bg-white border border-gray-100 rounded-xl p-3 flex flex-col gap-2 relative shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow h-full",
+      "discount_chip": "Absolute top-0 left-0 bg-green-600 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg rounded-tl-xl z-10",
+      "image_container": "w-full aspect-square relative mb-2 flex items-center justify-center p-2",
+      "time_pill": "flex items-center gap-1 text-[10px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md w-max mt-1",
+      "price_section": "flex items-center gap-2 mt-auto",
+      "add_button": "w-full bg-[#E4002B]/10 text-[#E4002B] border border-[#E4002B] rounded-lg py-1.5 font-bold text-sm hover:bg-[#E4002B] hover:text-white transition-colors flex justify-center items-center h-9",
+      "stepper": "flex justify-between items-center bg-[#E4002B] text-white rounded-lg h-9 px-2 font-bold text-sm"
+    },
+    "cart_drawer": {
+      "style": "Fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl border-l border-gray-100 z-[100] flex flex-col",
+      "header": "p-4 border-b border-gray-100 flex justify-between items-center bg-white",
+      "body": "flex-1 overflow-y-auto p-4 bg-gray-50 flex flex-col gap-3",
+      "footer": "p-4 border-t border-gray-100 bg-white"
+    },
+    "sticky_bottom_cart": {
+      "style": "Fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 p-3 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]",
+      "content": "Flex between. Left: Item count & total price in bold. Right: 'View Cart' button (bg-[#E4002B] text-white rounded-lg px-6 py-2.5 font-bold)"
+    },
+    "checkout_stepper": {
+      "style": "Clean white background, clear typography, prominent order summary. Support for UPI-QR proof upload and COD.",
+      "sections": "Address -> Delivery Slot -> Payment"
+    },
+    "admin_dashboard": {
+      "layout": "Sidebar navigation (dark slate or crisp white), dense Shadcn UI tables for OMS and Catalog",
+      "colors": "Neutral grays with primary red for key actions only. No over-usage of red."
+    }
+  },
+  "testing": {
+    "rules": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case format.",
+    "examples": ["data-testid='category-tile-fruits'", "data-testid='add-to-cart-btn'", "data-testid='cart-drawer-checkout'"]
+  },
+  "internationalization": {
+    "default_locale": "en",
+    "supported_locales": ["en", "hi"],
+    "notes": "Include a toggle in the header for English/Hindi switching. Design UI components flexible enough to handle Hindi text expansion."
+  },
+  "media": {
+    "guidelines": "Use these precise URLs for implementation. Duplicate products with varying details (name, price) to populate ~30 catalog items.",
+    "logo_fallback": {
+      "text": "V MART",
+      "color": "#FFFFFF",
+      "bg": "#E4002B",
+      "font": "serif"
+    },
+    "banners": [
+      {
+        "url": "https://images.pexels.com/photos/6868801/pexels-photo-6868801.jpeg",
+        "alt": "10-Min Fast Grocery Delivery"
+      },
+      {
+        "url": "https://images.pexels.com/photos/6868793/pexels-photo-6868793.jpeg",
+        "alt": "Safe and Fast Delivery"
+      }
+    ],
+    "categories": [
+      {
+        "id": "fruits_veg",
+        "name": "Fruits & Veg",
+        "image": "https://images.pexels.com/photos/12765459/pexels-photo-12765459.jpeg",
+        "tint": "#ECFDF5"
+      },
+      {
+        "id": "dairy",
+        "name": "Dairy & Bread",
+        "image": "https://images.pexels.com/photos/17546504/pexels-photo-17546504.jpeg",
+        "tint": "#EFF6FF"
+      },
+      {
+        "id": "snacks",
+        "name": "Munchies",
+        "image": "https://images.pexels.com/photos/13060681/pexels-photo-13060681.jpeg",
+        "tint": "#FEFCE8"
+      },
+      {
+        "id": "beverages",
+        "name": "Cold Drinks",
+        "image": "https://images.unsplash.com/photo-1594971475674-6a97f8fe8c2b",
+        "tint": "#F5F3FF"
+      },
+      {
+        "id": "personal_care",
+        "name": "Personal Care",
+        "image": "https://images.unsplash.com/photo-1589060040843-7a31813e6fb0",
+        "tint": "#F0FDF4"
+      }
+    ],
+    "products": [
+      {
+        "id": "p1",
+        "name": "Farm Fresh Tomatoes (500g)",
+        "category": "fruits_veg",
+        "image": "https://images.pexels.com/photos/12765459/pexels-photo-12765459.jpeg",
+        "price": 45,
+        "mrp": 60
+      },
+      {
+        "id": "p2",
+        "name": "Farm Fresh Onions (1kg)",
+        "category": "fruits_veg",
+        "image": "https://images.pexels.com/photos/9705821/pexels-photo-9705821.jpeg",
+        "price": 35,
+        "mrp": 50
+      },
+      {
+        "id": "p3",
+        "name": "Fresh Cow Milk (1L)",
+        "category": "dairy",
+        "image": "https://images.pexels.com/photos/248412/pexels-photo-248412.jpeg",
+        "price": 68,
+        "mrp": 70
+      },
+      {
+        "id": "p4",
+        "name": "Salted Potato Chips (Family Pack)",
+        "category": "snacks",
+        "image": "https://images.pexels.com/photos/13060679/pexels-photo-13060679.jpeg",
+        "price": 45,
+        "mrp": 50
+      },
+      {
+        "id": "p5",
+        "name": "Classic Cola Can (330ml)",
+        "category": "beverages",
+        "image": "https://images.unsplash.com/photo-1592892111425-15e04305f961",
+        "price": 40,
+        "mrp": 40
+      },
+      {
+        "id": "p6",
+        "name": "Classic Cola Bottle (750ml)",
+        "category": "beverages",
+        "image": "https://images.unsplash.com/photo-1567103472667-6898f3a79cf2",
+        "price": 45,
+        "mrp": 45
+      },
+      {
+        "id": "p7",
+        "name": "Refreshing Bath Soap (Set of 3)",
+        "category": "personal_care",
+        "image": "https://images.unsplash.com/photo-1696881694567-cd1a97958fc8",
+        "price": 120,
+        "mrp": 150
+      },
+      {
+        "id": "p8",
+        "name": "Moisturizing Cream Soap",
+        "category": "personal_care",
+        "image": "https://images.unsplash.com/photo-1729019376615-8b857397964f",
+        "price": 55,
+        "mrp": 65
+      }
+    ]
+  }
+}
