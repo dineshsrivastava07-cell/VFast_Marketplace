@@ -77,3 +77,10 @@ test-results/
 
 # --- Emergent run artifacts --- #
 .emergent/
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
