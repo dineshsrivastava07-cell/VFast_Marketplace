@@ -227,9 +227,9 @@ async def exception_queue(request: Request, _u=Depends(require_roles(*STAFF))):
     db = request.state.db
     statuses = ["payment_rejected", "cancelled"]
     orders = await db.orders.find({"status": {"$in": statuses}}, {"_id": 0}).sort("created_at", -1).limit(200).to_list(200)
-    # Also include orders with stockout flag
+    # Tag stockout exceptions for client filtering
     stockouts = await db.orders.find({"exception": "stockout"}, {"_id": 0}).to_list(200)
-    return {"orders": orders, "stockouts": stockouts}
+    return orders + [{**s, "exception_type": "stockout"} for s in stockouts]
 
 
 @router.get("/oms/cod-reconciliation")
@@ -301,7 +301,18 @@ async def update_category(cat_id: str, payload: dict, request: Request,
 @router.delete("/catalog/categories/{cat_id}")
 async def delete_category(cat_id: str, request: Request, user=Depends(require_roles(*ADMINS))):
     db = request.state.db
-    if await db.products.count_documents({"$or": [{"category_id": cat_id}, {"subcategory_id": cat_id}]}):
+    cat = await db.categories.find_one({"id": cat_id}, {"_id": 0})
+    if not cat:
+        raise HTTPException(404, "Category not found")
+    slug = cat.get("slug")
+    # Block if any products reference this category by id OR slug
+    has_products = await db.products.count_documents({
+        "$or": [
+            {"category_id": cat_id}, {"subcategory_id": cat_id},
+            {"category_slug": slug}, {"subcategory_slug": slug},
+        ]
+    })
+    if has_products:
         raise HTTPException(400, "Category has products — move or delete them first")
     if await db.categories.count_documents({"parent_id": cat_id}):
         raise HTTPException(400, "Category has subcategories")
@@ -367,7 +378,8 @@ async def update_product(prod_id: str, payload: dict, request: Request,
     if not r.matched_count:
         raise HTTPException(404, "Product not found")
     await log_action(db, user, "product.update", "product", prod_id, update)
-    return {"ok": True}
+    updated = await db.products.find_one({"id": prod_id}, {"_id": 0})
+    return updated or {"ok": True}
 
 
 @router.delete("/catalog/products/{prod_id}")
@@ -470,7 +482,8 @@ async def update_inventory(product_id: str, payload: dict, request: Request,
             upsert=True,
         )
     await log_action(db, user, "inventory.update", "product", product_id, payload)
-    return {"ok": True}
+    updated = await db.products.find_one({"id": product_id}, {"_id": 0})
+    return updated or {"ok": True}
 
 
 @router.get("/inventory/low-stock")
@@ -591,7 +604,8 @@ async def list_riders(request: Request, _u=Depends(require_roles(*STAFF))):
         r["completed_total"] = completed
         r["today_orders"] = today_orders
         r["earnings_today"] = round(today_orders * 25.0, 2)
-        r["status"] = r.get("rider_status", "offline")
+        r["rider_status"] = r.get("rider_status", "offline")
+        r["status"] = r["rider_status"]  # keep both for frontend compat
     return riders
 
 
@@ -844,12 +858,18 @@ async def list_templates(request: Request, _u=Depends(require_roles(*STAFF))):
 @router.post("/notification-templates")
 async def upsert_template(payload: dict, request: Request, user=Depends(require_roles(*ADMINS))):
     db = request.state.db
+    # Accept 'event' or legacy 'code' for the trigger key
+    event = payload.get("event") or payload.get("code")
+    channel = payload.get("channel")
+    body = payload.get("body")
+    if not event or not channel or not body:
+        raise HTTPException(400, "channel, event and body are required")
     doc = {
         "id": payload.get("id") or new_id(),
-        "channel": payload["channel"],  # sms | email | push
-        "event": payload["event"],
+        "channel": channel,
+        "event": event,
         "subject": payload.get("subject", ""),
-        "body": payload["body"],
+        "body": body,
         "active": payload.get("active", True),
         "updated_at": now_iso(),
     }

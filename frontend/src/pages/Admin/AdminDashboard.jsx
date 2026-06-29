@@ -62,13 +62,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Stat icon={ShoppingBag} label="Orders today" value={k.today_orders} />
-        <Stat icon={TrendingUp} label="GMV today" value={`₹${k.today_gmv}`} sub={`${revPct >= 0 ? "+" : ""}${revPct}% vs yesterday`} tone={revPct >= 0 ? "text-green-600" : "text-red-600"} />
-        <Stat icon={UsersIcon} label="Active riders" value={k.active_riders} tone="text-indigo-600" />
-        <Stat icon={AlertCircle} label="Pending pay" value={k.pending_payments} tone="text-amber-600" />
-        <Stat icon={Package} label="Low stock" value={k.low_stock_alerts} tone="text-red-600" />
-        <Stat icon={LifeBuoy} label="Open tickets" value={k.open_tickets} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-testid="kpi-grid">
+        <div data-testid="kpi-orders-today"><Stat icon={ShoppingBag} label="Orders today" value={k.today_orders} /></div>
+        <div data-testid="kpi-gmv-today"><Stat icon={TrendingUp} label="GMV today" value={`₹${k.today_gmv}`} sub={`${revPct >= 0 ? "+" : ""}${revPct}% vs yesterday`} tone={revPct >= 0 ? "text-green-600" : "text-red-600"} /></div>
+        <div data-testid="kpi-active-riders"><Stat icon={UsersIcon} label="Active riders" value={k.active_riders} tone="text-indigo-600" /></div>
+        <div data-testid="kpi-pending-pay"><Stat icon={AlertCircle} label="Pending pay" value={k.pending_payments} tone="text-amber-600" /></div>
+        <div data-testid="kpi-low-stock"><Stat icon={Package} label="Low stock" value={k.low_stock_alerts} tone="text-red-600" /></div>
+        <div data-testid="kpi-open-tickets"><Stat icon={LifeBuoy} label="Open tickets" value={k.open_tickets} /></div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">

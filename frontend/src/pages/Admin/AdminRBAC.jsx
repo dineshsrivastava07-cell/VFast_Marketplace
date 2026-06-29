@@ -11,7 +11,15 @@ export default function AdminRBAC() {
     const [r, u] = await Promise.all([api.get("/admin/rbac"), api.get("/admin/users")]);
     setData(r.data); setUsers(u.data);
     const init = {};
-    r.data.roles.forEach(role => { init[role.role] = JSON.parse(JSON.stringify(role.permissions || {})); });
+    (r.data.roles || []).forEach(role => {
+      // Defensively normalise: permissions may be {module: [actions]} or absent.
+      const perms = role.permissions && typeof role.permissions === "object" ? role.permissions : {};
+      const safe = {};
+      Object.keys(perms).forEach(m => {
+        safe[m] = Array.isArray(perms[m]) ? perms[m] : [];
+      });
+      init[role.role] = safe;
+    });
     setEditing(init);
   };
   useEffect(() => { refresh(); }, []);
@@ -19,8 +27,8 @@ export default function AdminRBAC() {
   const toggle = (role, module, action) => {
     setEditing(prev => {
       const next = { ...prev };
-      next[role] = { ...next[role] };
-      const arr = next[role][module] || [];
+      next[role] = { ...(next[role] || {}) };
+      const arr = Array.isArray(next[role][module]) ? next[role][module] : [];
       next[role][module] = arr.includes(action) ? arr.filter(a => a !== action) : [...arr, action];
       return next;
     });
@@ -53,9 +61,12 @@ export default function AdminRBAC() {
                   {data.modules.map(m => (
                     <tr key={m} className="border-t border-gray-100">
                       <td className="py-1 pr-2 font-semibold">{m}</td>
-                      {data.actions.map(a => (
-                        <td key={a} className="py-1 px-2"><input type="checkbox" data-testid={`perm-${role.role}-${m}-${a}`} checked={(editing[role.role]?.[m] || []).includes(a)} onChange={() => toggle(role.role, m, a)} disabled={role.role === "super_admin"} /></td>
-                      ))}
+                      {data.actions.map(a => {
+                        const arr = Array.isArray(editing[role.role]?.[m]) ? editing[role.role][m] : [];
+                        return (
+                          <td key={a} className="py-1 px-2"><input type="checkbox" data-testid={`perm-${role.role}-${m}-${a}`} checked={arr.includes(a)} onChange={() => toggle(role.role, m, a)} disabled={role.role === "super_admin"} /></td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

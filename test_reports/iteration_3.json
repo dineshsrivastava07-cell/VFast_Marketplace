@@ -1,0 +1,47 @@
+{
+  "summary": "Phase-2 re-validation of 7 fixes from iteration_2.json + admin navigation regression sweep. ALL TARGETED FIXES VERIFIED. Backend: 9/9 refix tests pass (test_phase2_refixes.py); broader phase2 suite now 20/22 (was 17/22) - the 2 remaining failures are stale TEST-SCRIPT issues (slug-as-id, expiry vs expiry_date payload key) - NOT regressions of the fixes. Frontend: KPI grid + all 6 kpi-* testids present with numeric values; AdminRBAC no longer crashes - permissions matrix renders with checkbox toggles; 5/6 role cards have data-testid (role-customer_support missing); all 13 admin sidebar pages load without React error boundaries.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/rbac/{role}", "issue": "Admin role correctly gets 403 on update (only super_admin can write per spec). This is correct behavior, but frontend should handle the 403 gracefully (see frontend issue)."},
+      {"endpoint": "/api/admin/inventory/batches", "issue": "Endpoint expects payload['expiry_date'] but the legacy phase2 test sends 'expiry' - test bug only (this endpoint not part of re-validation scope)."},
+      {"endpoint": "DELETE /api/admin/catalog/categories/{cat_id}", "issue": "Endpoint takes the category id (uuid), not slug. Stale test_vfast_phase2_admin.py uses slug 'food-beverages' as path param -> 404. Verified fix works correctly when id is passed (refix test passes)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminRBAC", "issue": "data-testid='role-customer_support' card not rendered (other 5 role cards present: role-super_admin, role-admin, role-operations, role-seller, role-delivery_partner). Either backend /admin/rbac roles list lacks customer_support or UI testid map is missing this entry.", "selector": "[data-testid='role-customer_support']", "priority": "LOW"},
+      {"component": "AdminRBAC save flow", "issue": "Clicking save-rbac-admin while logged in as admin (not super_admin) raises an UNHANDLED axios 403 promise rejection. React dev overlay shows 'Uncaught runtime error: AxiosError: Request failed with status code 403' and obscures the page. Backend behavior is correct (403). Frontend should .catch() the error and surface a 'You don't have permission' toast instead.", "selector": "[data-testid='save-rbac-admin']", "priority": "MEDIUM"},
+      {"component": "AdminOrders", "issue": "5 console 404s on initial /admin/orders load (pre-existing, also flagged in iteration_2). Likely a stale static asset / icon path.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase2_refixes.py",
+    "/app/backend/tests/test_vfast_phase2_admin.py",
+    "/app/test_reports/pytest/pytest_refixes.xml",
+    "/app/test_reports/pytest/pytest_phase2.xml"
+  ],
+  "action_items": [
+    "[FRONTEND - MEDIUM] AdminRBAC.jsx: wrap save call in try/catch (or .catch) to handle 403 from non-super_admin saves with a user-facing toast instead of letting it bubble as an unhandled axios rejection.",
+    "[FRONTEND - LOW] Add data-testid='role-customer_support' to the customer_support role card on AdminRBAC (or ensure that role appears in the roles list returned from /admin/rbac).",
+    "[BACKEND - LOW] /admin/inventory/batches expects payload key 'expiry_date'; if the UI/legacy tests send 'expiry', accept it as an alias OR document the contract clearly. Same for category DELETE - keeping id-only is fine but document that slug isn't accepted.",
+    "[LOW] Investigate 5 console 404s on /admin/orders initial render (pre-existing from iteration_2)."
+  ],
+  "critical_code_review_comments": [
+    "All 7 targeted fixes from iteration_2 are correctly implemented and verified. EmailStr->str (FIX 1), slug-based category delete guard (FIX 3), exception_queue array shape (FIX 4), riders rider_status+status alias (FIX 5), PATCH product returns updated doc with recomputed express_eligible (FIX 6), POST inventory returns updated doc with recomputed in_stock (FIX 6b), templates 400-on-missing-event + legacy 'code' alias (FIX 7), and KPI data-testids (FIX 8) all pass.",
+    "RBAC frontend now defensive against malformed permission shape (Array.isArray guards work), but save-flow lacks error-handling for the legitimate 403 from non-super_admin users. This is a common gap pattern - audit all admin write actions for similar unhandled rejections.",
+    "Two stale tests in test_vfast_phase2_admin.py (slug-as-id for category delete; 'expiry' vs 'expiry_date' payload key for inventory batches) should be corrected or the backend should accept the aliases. They were already failing in iteration_2 and remain failing - not a regression."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase2_refixes.py (new - 9 targeted re-validation tests for iteration_2 fixes)"
+  ],
+  "success_rate": {"backend": "100% (9/9 refix tests pass) + 20/22 broader phase2 (improved from 17/22)", "frontend": "13/13 admin pages load, all KPI testids present, RBAC no longer crashes - one save-flow unhandled-rejection edge case + one missing role-customer_support testid"},
+  "test_credentials": "admin@vfast.local/admin123 ; super.admin@vfast.local/admin123 ; ops@vfast.local/ops123 ; rider@vfast.local/rider123 ; customer OTP +919999999999 (dev_code in /api/auth/otp/request response)",
+  "seed_data_creation": "test_phase2_refixes.py creates one ephemeral product per run (slug 'test-prod-<uuid6>'); not cleaned up - safe to leave for future inspection. One legacy 'order_placed_<uuid5>' notification template is created and deleted within the same test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration_2 critical/high fixes are validated. The remaining items are minor (frontend save 403 handling, customer_support role testid, stale legacy tests). Re-run command: REACT_APP_BACKEND_URL=https://vmart-express.preview.emergentagent.com python -m pytest backend/tests/test_phase2_refixes.py -v -n 0",
+  "rca_of_the_issue": "All iteration_2 RCAs resolved: (a) EmailStr->str retained on EmailLogin; (b) AdminRBAC.jsx now guards permission iterables with Array.isArray; (c) DELETE category checks both id-based and slug-based product references; (d) /admin/oms/exceptions returns plain list with order_no/status/exception_type; (e) /admin/riders rows expose both rider_status (canonical) and status (alias); (f) PATCH product / POST inventory now return the updated document with recomputed express_eligible & in_stock; (g) notification-templates returns 400 (not 500) when 'event' is missing and accepts legacy 'code' alias; (h) AdminDashboard KPI cards now carry kpi-orders-today / kpi-gmv-today / kpi-active-riders / kpi-pending-pay / kpi-low-stock / kpi-open-tickets data-testids on a kpi-grid wrapper. NEW MINOR FINDING: AdminRBAC save call does not catch 403 - admin clicking save triggers unhandled axios rejection that React dev overlay surfaces as a runtime error."
+}
