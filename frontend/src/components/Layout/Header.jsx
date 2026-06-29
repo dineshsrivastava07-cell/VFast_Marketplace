@@ -100,6 +100,7 @@ export default function Header() {
                   <>
                     <Link to="/profile" data-testid="menu-profile" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My profile</Link>
                     <Link to="/orders" data-testid="menu-orders" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Orders</Link>
+                    <Link to="/wishlist" data-testid="menu-wishlist" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Wishlist</Link>
                     {(user.role === "super_admin" || user.role === "admin" || user.role === "operations") && (
                       <Link to="/admin" data-testid="menu-admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Admin Panel</Link>
                     )}

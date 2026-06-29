@@ -20,10 +20,18 @@ export default function Checkout() {
   });
   const [payment, setPayment] = useState("cod");
   const [placing, setPlacing] = useState(false);
+  const [qr, setQr] = useState(null);
 
   useEffect(() => {
     setAddr((a) => ({ ...a, pincode: pincode || a.pincode, city: serviceability?.city || a.city, phone: user?.phone || a.phone }));
   }, [pincode, serviceability, user]);
+
+  // Fetch active QR / UPI VPA whenever PIN changes (for the UPI-Intent deep-link)
+  useEffect(() => {
+    api.get(`/catalog/active-qr${addr.pincode ? `?pincode=${addr.pincode}` : ""}`)
+      .then((r) => setQr(r.data))
+      .catch(() => setQr(null));
+  }, [addr.pincode]);
 
   if (!user) {
     return <div className="max-w-md mx-auto p-8 text-center" data-testid="checkout-need-login">
@@ -85,11 +93,20 @@ export default function Checkout() {
             </label>
             <label data-testid="pay-upi" className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${payment==="upi_qr"?"border-[#E4002B] bg-[#FDE6EA]":"border-gray-200"}`}>
               <input type="radio" checked={payment==="upi_qr"} onChange={()=>setPayment("upi_qr")} />
-              <div>
+              <div className="flex-1">
                 <div className="font-semibold text-sm">UPI QR (Scan & Pay)</div>
                 <div className="text-xs text-gray-500">Scan our UPI QR with any UPI app, then upload the payment screenshot/UTR on the next screen.</div>
               </div>
             </label>
+            {payment === "upi_qr" && qr?.upi_id && (
+              <a
+                data-testid="pay-upi-intent"
+                href={`upi://pay?pa=${encodeURIComponent(qr.upi_id)}&pn=${encodeURIComponent("VFast")}&am=${encodeURIComponent(total)}&cu=INR&tn=${encodeURIComponent("VFast order")}`}
+                className="mt-2 ml-7 inline-flex items-center justify-center gap-2 text-sm font-semibold py-2 px-4 rounded-xl border border-[#E4002B] text-[#E4002B] hover:bg-[#FDE6EA]"
+              >
+                ⚡ Pay via UPI app · ₹{total}
+              </a>
+            )}
           </div>
         </section>
       </div>

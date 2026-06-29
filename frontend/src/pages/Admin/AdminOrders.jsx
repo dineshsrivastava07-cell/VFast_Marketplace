@@ -29,6 +29,26 @@ export default function AdminOrders() {
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [filters.status, filters.payment_method]);
 
+  // ----- Live OMS via WebSocket -----
+  const [live, setLive] = useState(false);
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    const base = (process.env.REACT_APP_BACKEND_URL || "").replace(/^http/, "ws");
+    if (!base) return;
+    const ws = new WebSocket(`${base}/api/ws/oms`);
+    ws.onopen = () => setLive(true);
+    ws.onclose = () => setLive(false);
+    ws.onerror = () => setLive(false);
+    ws.onmessage = (msg) => {
+      try {
+        const evt = JSON.parse(msg.data);
+        if (evt.event && evt.event.startsWith("order.")) { setPulse((x) => x + 1); refresh(); }
+      } catch { /* ignore */ }
+    };
+    return () => ws.close();
+    // eslint-disable-next-line
+  }, []);
+
   const slaMap = useMemo(() => Object.fromEntries(sla.map(s => [s.order_no, s])), [sla]);
   const filtered = useMemo(() => orders.filter(o =>
     !filters.q || [o.order_no, o.customer_phone, o.address?.pincode].join(" ").toLowerCase().includes(filters.q.toLowerCase())
@@ -87,7 +107,13 @@ export default function AdminOrders() {
   return (
     <div className="space-y-4" data-testid="admin-orders-page">
       <div className="flex flex-wrap items-center gap-2 justify-between">
-        <h1 className="font-display text-2xl font-bold">Orders (OMS)</h1>
+        <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+          Orders (OMS)
+          <span data-testid="oms-live-indicator" className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${live ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+            {live ? "LIVE" : "RECONNECTING"}{pulse > 0 && ` · ${pulse} updates`}
+          </span>
+        </h1>
         <div className="flex flex-wrap gap-2 items-center">
           <input data-testid="oms-search" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Search order/phone/PIN" className="px-3 py-2 rounded-xl border border-gray-200 text-sm" />
           <select data-testid="oms-status-filter" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-3 py-2 rounded-xl border border-gray-200 text-sm">

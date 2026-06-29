@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package, Store, Bike, Shield, FileSearch, Settings as SettingsIcon, Boxes, IndianRupee, Megaphone, UserCheck, LineChart, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package, Store, Bike, Shield, FileSearch, Settings as SettingsIcon, Boxes, IndianRupee, Megaphone, UserCheck, LineChart, ClipboardCheck, ShieldCheck } from "lucide-react";
 import { Helmet } from "../../components/Helmet";
 
 const NAV = [
@@ -18,6 +18,7 @@ const NAV = [
   { to: "/admin/crm", icon: UserCheck, label: "CRM & tickets" },
   { to: "/admin/analytics", icon: LineChart, label: "Analytics" },
   { to: "/admin/seller-kyc", icon: ClipboardCheck, label: "Seller KYC" },
+  { to: "/admin/dpdp", icon: ShieldCheck, label: "DPDP compliance" },
   { to: "/admin/qr-codes", icon: QrCode, label: "UPI QR" },
   { to: "/admin/rbac", icon: Shield, label: "Roles & permissions" },
   { to: "/admin/audit", icon: FileSearch, label: "Audit log" },

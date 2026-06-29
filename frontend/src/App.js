@@ -43,6 +43,7 @@ import AdminMarketing from "./pages/Admin/AdminMarketing";
 import AdminCRM from "./pages/Admin/AdminCRM";
 import AdminAnalytics from "./pages/Admin/AdminAnalytics";
 import AdminSellerKYC from "./pages/Admin/AdminSellerKYC";
+import AdminDPDP from "./pages/Admin/AdminDPDP";
 
 import SellerLogin from "./pages/Seller/SellerLogin";
 import SellerLayout from "./pages/Seller/SellerLayout";
@@ -55,6 +56,9 @@ import SellerPayouts from "./pages/Seller/SellerPayouts";
 import RiderLogin from "./pages/Rider/RiderLogin";
 import RiderApp from "./pages/Rider/RiderApp";
 
+import Wishlist from "./pages/Wishlist";
+import CookieBanner from "./components/CookieBanner";
+
 function StoreShell({ children }) {
   return (
     <>
@@ -62,6 +66,7 @@ function StoreShell({ children }) {
       <main className="min-h-[60vh] pb-24 md:pb-8">{children}</main>
       <BottomCartBar />
       <CartDrawer />
+      <CookieBanner />
       <Footer />
     </>
   );
@@ -87,6 +92,7 @@ function App() {
                   <Route path="/orders" element={<StoreShell><Orders /></StoreShell>} />
                   <Route path="/orders/:orderNo" element={<StoreShell><OrderDetail /></StoreShell>} />
                   <Route path="/profile" element={<StoreShell><Profile /></StoreShell>} />
+                  <Route path="/wishlist" element={<StoreShell><Wishlist /></StoreShell>} />
 
                   {/* Admin */}
                   <Route path="/admin/login" element={<AdminLogin />} />
@@ -110,6 +116,7 @@ function App() {
                     <Route path="crm" element={<AdminCRM />} />
                     <Route path="analytics" element={<AdminAnalytics />} />
                     <Route path="seller-kyc" element={<AdminSellerKYC />} />
+                    <Route path="dpdp" element={<AdminDPDP />} />
                   </Route>
 
                   {/* Seller portal */}

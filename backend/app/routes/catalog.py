@@ -143,6 +143,17 @@ async def banners(request: Request):
     return await db.banners.find({}, {"_id": 0}).to_list(20)
 
 
+@router.get("/active-qr")
+async def active_qr(request: Request, pincode: Optional[str] = None):
+    """Public: returns the QR / UPI VPA to use at checkout, preferring a PIN-scoped one."""
+    db = request.state.db
+    if pincode:
+        qr = await db.qr_codes.find_one({"scope": "pincode", "pincode": pincode, "active": True}, {"_id": 0})
+        if qr:
+            return qr
+    return await db.qr_codes.find_one({"scope": "global", "active": True}, {"_id": 0}) or {}
+
+
 @router.get("/brands")
 async def list_brands(request: Request, category: Optional[str] = None):
     """Return distinct brand list — optionally scoped to a category."""

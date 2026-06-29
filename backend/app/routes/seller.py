@@ -80,6 +80,20 @@ async def approve_kyc(kyc_id: str, payload: dict, request: Request,
     if not r.matched_count:
         raise HTTPException(404, "KYC record not found")
     await log_action(db, user, f"seller.kyc.{status}", "seller_kyc", kyc_id)
+    if status == "approved":
+        try:
+            from ..services.email import send_email, seller_approval_html
+            kyc = await db.seller_kyc.find_one({"id": kyc_id}, {"_id": 0})
+            seller = await db.users.find_one({"id": kyc.get("seller_id")}, {"_id": 0, "email": 1, "name": 1}) if kyc else None
+            if seller and seller.get("email"):
+                await send_email(
+                    seller["email"],
+                    "Welcome to VFast Marketplace — KYC approved",
+                    seller_approval_html(seller.get("name") or "Seller"),
+                    tag="seller-approval",
+                )
+        except Exception:
+            pass
     return {"ok": True}
 
 

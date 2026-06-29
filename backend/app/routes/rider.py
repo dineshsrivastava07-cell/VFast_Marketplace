@@ -122,7 +122,6 @@ async def rider_deliver(order_no: str, payload: dict, request: Request,
         "$set": {"status": "delivered", "pod": pod, "delivered_at": now_iso()},
         "$push": {"timeline": {"status": "delivered", "at": now_iso(), "pod": pod}},
     }
-    # auto-mark COD collected if cash mark provided
     if payload.get("cod_collected"):
         update["$set"].update({"payment_status": "collected", "collected_at": now_iso()})
     r = await db.orders.update_one(
@@ -132,6 +131,12 @@ async def rider_deliver(order_no: str, payload: dict, request: Request,
         raise HTTPException(404, "Order not found or not yours")
     await db.users.update_one({"id": user["id"]}, {"$set": {"rider_status": "online"}})
     await log_action(db, user, "rider.deliver", "order", order_no, pod)
+    try:
+        from .realtime import broadcast_order_event
+        order = await db.orders.find_one({"order_no": order_no}, {"_id": 0})
+        await broadcast_order_event("order.delivered", order)
+    except Exception:
+        pass
     return {"ok": True}
 
 

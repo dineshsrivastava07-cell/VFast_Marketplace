@@ -9,6 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ..models import CreateOrderIn, UPIProofIn, new_id, now_iso
 from ..security import get_current_user, is_staff
+from ..services.email import send_email, order_confirmation_html
+from ..services.push import send_push
+from .realtime import broadcast_order_event
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -105,6 +108,22 @@ async def create_order(
     await db.orders.insert_one(order.copy())
     await db.carts.delete_one({"user_id": user["id"]})
     order.pop("_id", None)
+
+    # Side-effects: confirmation email + push + live OMS broadcast
+    if user.get("email"):
+        await send_email(
+            user["email"],
+            f"VFast — Order {order['order_no']} confirmed",
+            order_confirmation_html(order["order_no"], order["total"], order["items"],
+                                     user.get("name") or "Customer"),
+            tag="order-confirmation",
+        )
+    device_token = user.get("device_token")
+    if device_token:
+        await send_push(device_token, "Order placed",
+                        f"VFast order {order['order_no']} placed · ETA {order['eta_minutes']} min",
+                        data={"order_no": order["order_no"], "status": initial_status})
+    await broadcast_order_event("order.created", order)
     return order
 
 
@@ -148,6 +167,7 @@ async def submit_upi_proof(
         },
     )
     order = await db.orders.find_one({"order_no": order_no}, {"_id": 0})
+    await broadcast_order_event("order.payment_verifying", order)
     return order
 
 
@@ -166,4 +186,6 @@ async def cancel_order(order_no: str, request: Request, user: dict = Depends(get
             "$push": {"timeline": {"status": "cancelled", "at": now_iso()}},
         },
     )
+    order = await db.orders.find_one({"order_no": order_no}, {"_id": 0})
+    await broadcast_order_event("order.cancelled", order)
     return {"ok": True}

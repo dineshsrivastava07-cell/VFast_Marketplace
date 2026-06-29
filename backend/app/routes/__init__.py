@@ -14,6 +14,9 @@ from .analytics import router as analytics_router
 from .seller import router as seller_router
 from .rider import router as rider_router
 from .customer import router as customer_router
+from .dpdp import router as dpdp_router
+from .social import router as social_router, admin_router as social_admin_router
+from .realtime import router as realtime_router
 
 __all__ = [
     "auth_router",
@@ -33,4 +36,8 @@ __all__ = [
     "seller_router",
     "rider_router",
     "customer_router",
+    "dpdp_router",
+    "social_router",
+    "social_admin_router",
+    "realtime_router",
 ]
