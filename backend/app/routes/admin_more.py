@@ -325,6 +325,9 @@ async def delete_category(cat_id: str, request: Request, user=Depends(require_ro
 async def create_product(payload: dict, request: Request,
                          user=Depends(require_roles("super_admin", "admin", "seller"))):
     db = request.state.db
+    for required in ("slug", "name", "category_slug", "price"):
+        if not payload.get(required):
+            raise HTTPException(400, f"`{required}` is required")
     if await db.products.find_one({"slug": payload["slug"]}):
         raise HTTPException(400, "Slug already exists")
     cat = await db.categories.find_one({"slug": payload["category_slug"]})
