@@ -42,6 +42,23 @@ Backend additions: 7 new route modules — `finance.py`, `marketing.py`, `crm.py
 
 Mocked: SMS / Push / Email campaign send (clearly labelled with `mocked=true`); OTP SMS provider (dev_code returned).
 
+### Phase 4 — DPDP + wishlist/reviews + SMS/Email/Push + WebSocket live OMS + UPI-Intent (2026-06-29)
+**All P0/P1/P2 from the user's punch list delivered.** Iteration_7 test report: **16/16 Phase 4 backend tests pass, 100% frontend Phase-4 surfaces green.**
+
+- **Admin → DPDP console** (`/admin/dpdp`): 6 tabs (Overview KPIs, Rights requests, Grievances, Breach log, Consent records, Cookie banner). Erasure flow anonymizes the user with unique tombstones and deletes their addresses. Versioned consent records with policy_version. Breach logger with severity + users-impacted. Public GET on banner-settings; admin-only POST.
+- **Customer cookie consent banner** — fronts the whole storefront, gated on `/api/dpdp/banner-settings`, persists local choice in `localStorage('vfast.consent')`, and records marketing+analytics consents in `consent_records` if the user is logged in.
+- **Wishlist** (`/wishlist`): heart toggle on every product detail, "Move to cart" with one tap. Endpoints: GET/POST/DELETE `/api/wishlist[/{product_id}]`.
+- **Reviews**: star picker + title + body on every product page. Submissions are `pending` until admin moderates via `/api/admin/reviews/{id}/moderate`. `verified_purchase` flag wired through delivered orders.
+- **MSG91 SMS** — `services/sms.py` integrated with the OTP flow + a separate `send_promo_sms()` for campaigns. Env-driven (SMS_API_KEY, MSG91_SENDER_ID, MSG91_FLOW_ID). Falls back to `[MOCK SMS]` log when keys missing.
+- **Resend transactional email** — `services/email.py` with three ready templates (order-confirmation, seller-approval, rider-onboarding). Env: EMAIL_API_KEY, EMAIL_FROM. Falls back to `[MOCK EMAIL]` log.
+- **FCM HTTP v1 push** — `services/push.py` with OAuth2 service-account auth via `google-auth`. Env: FCM_PROJECT_ID + FCM_SERVICE_ACCOUNT_FILE (or _JSON). Falls back to `[MOCK PUSH]` log.
+- **WebSocket live OMS** — `/api/ws/oms` broadcasts `order.created` / `order.payment_verifying` / `order.cancelled` / `order.delivered` events. `/admin/orders` page now shows a LIVE pulse indicator + auto-refresh on every event.
+- **UPI-Intent** — `GET /api/catalog/active-qr` (public, PIN-scoped fallback to global). Checkout adds a `upi://pay?pa={vpa}&pn=VFast&am={total}&cu=INR` deep-link button next to the existing scan-and-upload-proof flow.
+
+Backend additions: 4 new route modules (`dpdp.py`, `social.py`, `realtime.py`), 3 new service modules (`sms.py` rewritten + `email.py` + `push.py`). Order/rider/seller flows now broadcast events + send confirmation emails + push notifications. Customer email index now uses unique tombstones to survive multiple erasures.
+
+Mocked (Phase 4 keeps mock fallback because keys not yet provided): SMS / Email / Push — flip to live by setting env vars (SMS_API_KEY+MSG91_SENDER_ID+MSG91_FLOW_ID, EMAIL_API_KEY+EMAIL_FROM, FCM_PROJECT_ID+FCM_SERVICE_ACCOUNT_FILE).
+
 ## User personas (unchanged)
 Customer (India), Super Admin, Admin, Operations, Seller (Phase 3), Delivery Partner (Phase 3).
 
