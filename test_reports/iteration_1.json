@@ -1,0 +1,66 @@
+{
+  "summary": "Phase-1 VFast: backend pytest run (24 tests) + customer-facing frontend smoke. Backend 16/19 functional tests passing (5 admin tests skipped due to a CRITICAL email-validation bug). Customer flows (catalog, OTP, serviceability, cart, COD order, UPI order + proof, RBAC) all green. Admin panel completely blocked by EmailStr rejecting `.local` TLD.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/auth/login",
+        "issue": "Returns 422 for ALL staff accounts (admin@vfast.local, ops@..., seller@..., rider@..., super.admin@...). Pydantic v2 `EmailStr` (email-validator >=2.x) rejects `.local` as a special-use/reserved TLD with message: 'The part after the @-sign is a special-use or reserved name'. This cascades to the entire admin panel: /api/admin/dashboard, /api/admin/orders, /api/admin/orders/{no}/verify-payment, /api/admin/orders/{no}/advance, /api/admin/pincodes (POST/DELETE), /api/admin/qr-codes, /api/payments/upload (admin-protected) are all untestable. RCA: app/models.py:40 `email: EmailStr` in EmailLogin. Mitigation options: (a) change to `email: str` with light regex, or (b) set EmailStr to use `check_deliverability=False` via `email_validator` config, or (c) seed real TLDs (e.g. admin@vfast.example.com / vfast.in). Recommended (a) since the field is matched against a stored email anyway.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "/api/serviceability/check/999999",
+        "issue": "Spec requires 400 for invalid/out-of-range PIN; backend returns 200 with {serviceable:false, pincode:'999999'}. The route treats any 6-digit string as 'valid format' and only returns 400 for non-6-digit input. Recommend rejecting PINs starting with 0 or 9 (India PINs start 1-8) or unknown ranges as 400."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Admin login (frontend /admin/login)",
+        "issue": "Blocked by the same EmailStr backend bug — admin@vfast.local cannot authenticate from UI. Did not test admin pages (dashboard/orders/pincodes/qr-codes/payment-queue/products/users) because they all require admin session.",
+        "affected_selectors": ["[data-testid='admin-login-submit']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Header / i18n",
+        "issues": [
+          "lang-toggle switches the search placeholder to Hindi (Devanagari) but the 'Login' nav link label remained in English. Hindi string for Login may be missing from i18n bundle in Header.jsx."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vfast_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX (CRITICAL): Replace `email: EmailStr` in app/models.py EmailLogin with `email: str` (or disable check_deliverability) so that admin@vfast.local etc. pass validation. Verify all 5 staff accounts can login.",
+    "FIX (minor): Make /api/serviceability/check/{pincode} return 400 for invalid Indian PINs (e.g. starting with 0/9) instead of 200/serviceable:false.",
+    "CONSIDER: Add Hindi translation for 'Login' label in Header (i18n bundle) for full EN↔HI parity.",
+    "AFTER FIX: Re-run pytest backend/tests/test_vfast_api.py (5 admin tests will un-skip) and do end-to-end UI test of admin panel (dashboard, payment-queue verify, pincodes add/delete, qr-codes upload, advance order)."
+  ],
+  "critical_code_review_comments": [
+    "app/models.py: EmailStr usage is brittle for internal/seeded admin accounts on .local TLD; either swap to plain str or change seed emails to real-ish TLDs (vfast.in, vfast.example.com).",
+    "Serviceability route lacks strict India-PIN format validation (1-8 leading digit) — leads to silent 'not serviceable' instead of 400 for clearly invalid inputs.",
+    "server.py mounts /api/static/uploads via StaticFiles inside the /api prefix — good, but ensure UPLOAD_DIR is persisted across deploys (currently /app/backend/uploads, lost on container restart unless volume is mounted).",
+    "Customer-side and admin-side use the same /api/auth/login — consider role guard on email-login (currently any role can login via email; OTP path is customer-only)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vfast_api.py (new file)",
+    "/app/test_reports/pytest/pytest_results.xml (generated)"
+  ],
+  "success_rate": {
+    "backend": "84% (16/19 executed tests passed; 5 skipped due to upstream admin-login bug)",
+    "frontend": "Customer side ~95% (home, categories, location gate, OTP banner, cart-btn count/price, lang-toggle search) ; Admin side 0% (login blocked)"
+  },
+  "test_credentials": "Customer OTP: +919999999999 (dev_code returned in /api/auth/otp/request response). Staff: admin@vfast.local/admin123 (currently BROKEN due to EmailStr). /app/memory/test_credentials.md is essentially empty — main agent should populate it.",
+  "seed_data_creation": "None — relied on backend's run_seed() at startup which is producing the expected 6 categories, 12 food subcategories (incl fruits-veg, dairy-eggs, ready-to-cook), >=40 FMCG products, Amul Taaza Milk slug with nutrition/HSN/FSSAI/refrigerated storage, 5 seeded PINs (110001 working). Test created/deleted ephemeral pincode 110010 and an order pair (cancelled COD + verifying UPI) — UPI order is still in DB unless admin verify runs; not cleaned up because admin path blocked.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent fixes EmailStr issue (likely app/models.py and possibly any other EmailStr in admin payloads), re-run `cd /app && REACT_APP_BACKEND_URL=https://vmart-express.preview.emergentagent.com pytest backend/tests/test_vfast_api.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. All 5 skipped admin tests should pass. Then run Playwright on /admin/login → /admin/dashboard → payment-queue (an UPI order from previous run should still be in payment_verifying) → pincodes/qr-codes CRUD. PDP route /p/amul-taaza-milk-1l, /c/food-beverages, /checkout, /orders flows were not visually tested — verify nutrition table, sub-chips, filter brand=Amul reduces grid, and order timeline shows correctly.",
+  "rca_of_the_issue": "BUG-1 (CRITICAL admin login): pydantic v2 ships with email-validator >=2.0 which by default treats `.local` (RFC 6762 mDNS) and other special-use TLDs as invalid. The EmailLogin pydantic model in /app/backend/app/models.py line 40 declares `email: EmailStr`, so the request body fails validation BEFORE the route handler is even called, returning 422 with `value is not a valid email address: The part after the @-sign is a special-use or reserved name`. All seeded staff emails in backend/.env use @vfast.local. Reproduction: `curl -s https://vmart-express.preview.emergentagent.com/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@vfast.local\",\"password\":\"admin123\"}'` returns HTTP 422. Fix: change `email: EmailStr` to `email: str` in EmailLogin (and lowercase/trim already done in route) OR change seeded emails to a non-special TLD. BUG-2 (serviceability 999999): app/routes/serviceability.py only validates 6-digit shape; need to also reject leading 0/9 or unknown range to return 400."
+}

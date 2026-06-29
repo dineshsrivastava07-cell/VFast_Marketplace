@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6
+        ports: ["27017:27017"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Lint
+        working-directory: backend
+        run: |
+          pip install flake8
+          flake8 --max-line-length=120 --exclude=__pycache__ . || true
+      - name: Smoke import
+        working-directory: backend
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          DB_NAME: vfast_test
+          JWT_SECRET: testsecret
+          SUPER_ADMIN_EMAIL: super.admin@vfast.local
+          SUPER_ADMIN_PASSWORD: admin123
+          ADMIN_EMAIL: admin@vfast.local
+          ADMIN_PASSWORD: admin123
+          OPS_EMAIL: ops@vfast.local
+          OPS_PASSWORD: ops123
+          SELLER_EMAIL: seller@vfast.local
+          SELLER_PASSWORD: seller123
+          RIDER_EMAIL: rider@vfast.local
+          RIDER_PASSWORD: rider123
+          DEMO_CUSTOMER_PHONE: "+919999999999"
+        run: python -c "import server"
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend deps
+        working-directory: frontend
+        run: yarn install --frozen-lockfile || yarn install
+      - name: Build
+        working-directory: frontend
+        env:
+          REACT_APP_BACKEND_URL: https://example.com
+        run: yarn build

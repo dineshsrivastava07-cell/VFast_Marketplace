@@ -1,0 +1,18 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print deploy info
+        run: |
+          echo "VFast Marketplace is deployed via the Emergent platform."
+          echo "Backend service: FastAPI (managed by supervisor in the Emergent pod)"
+          echo "Frontend service: React PWA (built via craco, served by Emergent ingress)"
+          echo "To trigger a deploy, use the Deploy button in app.emergent.sh."
