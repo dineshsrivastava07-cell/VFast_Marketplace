@@ -98,9 +98,16 @@ export default function Header() {
                   </>
                 ) : (
                   <>
+                    <Link to="/profile" data-testid="menu-profile" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My profile</Link>
                     <Link to="/orders" data-testid="menu-orders" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Orders</Link>
                     {(user.role === "super_admin" || user.role === "admin" || user.role === "operations") && (
                       <Link to="/admin" data-testid="menu-admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Admin Panel</Link>
+                    )}
+                    {user.role === "seller" && (
+                      <Link to="/seller" data-testid="menu-seller" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Seller Portal</Link>
+                    )}
+                    {user.role === "delivery_partner" && (
+                      <Link to="/rider" data-testid="menu-rider" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Rider App</Link>
                     )}
                     <button data-testid="menu-logout" onClick={() => { logout(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Logout</button>
                   </>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package, Store, Bike, Shield, FileSearch, Settings as SettingsIcon, Boxes } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, MapPin, QrCode, ListChecks, Users, LogOut, Package, Store, Bike, Shield, FileSearch, Settings as SettingsIcon, Boxes, IndianRupee, Megaphone, UserCheck, LineChart, ClipboardCheck } from "lucide-react";
 import { Helmet } from "../../components/Helmet";
 
 const NAV = [
@@ -13,6 +13,11 @@ const NAV = [
   { to: "/admin/pincodes", icon: MapPin, label: "Serviceability" },
   { to: "/admin/stores", icon: Store, label: "Stores & zones" },
   { to: "/admin/riders", icon: Bike, label: "Riders" },
+  { to: "/admin/finance", icon: IndianRupee, label: "Finance" },
+  { to: "/admin/marketing", icon: Megaphone, label: "Marketing" },
+  { to: "/admin/crm", icon: UserCheck, label: "CRM & tickets" },
+  { to: "/admin/analytics", icon: LineChart, label: "Analytics" },
+  { to: "/admin/seller-kyc", icon: ClipboardCheck, label: "Seller KYC" },
   { to: "/admin/qr-codes", icon: QrCode, label: "UPI QR" },
   { to: "/admin/rbac", icon: Shield, label: "Roles & permissions" },
   { to: "/admin/audit", icon: FileSearch, label: "Audit log" },

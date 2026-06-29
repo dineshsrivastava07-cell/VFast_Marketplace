@@ -7,6 +7,13 @@ from .payments import router as payments_router
 from .admin import router as admin_router
 from .admin_more import router as admin_more_router
 from .misc import router as misc_router
+from .finance import router as finance_router
+from .marketing import router as marketing_router, public_router as marketing_public_router
+from .crm import router as crm_router
+from .analytics import router as analytics_router
+from .seller import router as seller_router
+from .rider import router as rider_router
+from .customer import router as customer_router
 
 __all__ = [
     "auth_router",
@@ -18,4 +25,12 @@ __all__ = [
     "admin_router",
     "admin_more_router",
     "misc_router",
+    "finance_router",
+    "marketing_router",
+    "marketing_public_router",
+    "crm_router",
+    "analytics_router",
+    "seller_router",
+    "rider_router",
+    "customer_router",
 ]

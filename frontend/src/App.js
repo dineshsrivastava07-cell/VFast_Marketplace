@@ -20,6 +20,7 @@ import Login from "./pages/Login";
 import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
+import Profile from "./pages/Profile";
 
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminLayout from "./pages/Admin/AdminLayout";
@@ -37,6 +38,22 @@ import AdminRiders from "./pages/Admin/AdminRiders";
 import AdminRBAC from "./pages/Admin/AdminRBAC";
 import AdminAudit from "./pages/Admin/AdminAudit";
 import AdminSettings from "./pages/Admin/AdminSettings";
+import AdminFinance from "./pages/Admin/AdminFinance";
+import AdminMarketing from "./pages/Admin/AdminMarketing";
+import AdminCRM from "./pages/Admin/AdminCRM";
+import AdminAnalytics from "./pages/Admin/AdminAnalytics";
+import AdminSellerKYC from "./pages/Admin/AdminSellerKYC";
+
+import SellerLogin from "./pages/Seller/SellerLogin";
+import SellerLayout from "./pages/Seller/SellerLayout";
+import SellerDashboard from "./pages/Seller/SellerDashboard";
+import SellerProducts from "./pages/Seller/SellerProducts";
+import SellerOrders from "./pages/Seller/SellerOrders";
+import SellerKYC from "./pages/Seller/SellerKYC";
+import SellerPayouts from "./pages/Seller/SellerPayouts";
+
+import RiderLogin from "./pages/Rider/RiderLogin";
+import RiderApp from "./pages/Rider/RiderApp";
 
 function StoreShell({ children }) {
   return (
@@ -69,6 +86,7 @@ function App() {
                   <Route path="/checkout" element={<StoreShell><Checkout /></StoreShell>} />
                   <Route path="/orders" element={<StoreShell><Orders /></StoreShell>} />
                   <Route path="/orders/:orderNo" element={<StoreShell><OrderDetail /></StoreShell>} />
+                  <Route path="/profile" element={<StoreShell><Profile /></StoreShell>} />
 
                   {/* Admin */}
                   <Route path="/admin/login" element={<AdminLogin />} />
@@ -87,7 +105,26 @@ function App() {
                     <Route path="audit" element={<AdminAudit />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="users" element={<AdminUsers />} />
+                    <Route path="finance" element={<AdminFinance />} />
+                    <Route path="marketing" element={<AdminMarketing />} />
+                    <Route path="crm" element={<AdminCRM />} />
+                    <Route path="analytics" element={<AdminAnalytics />} />
+                    <Route path="seller-kyc" element={<AdminSellerKYC />} />
                   </Route>
+
+                  {/* Seller portal */}
+                  <Route path="/seller/login" element={<SellerLogin />} />
+                  <Route path="/seller" element={<SellerLayout />}>
+                    <Route index element={<SellerDashboard />} />
+                    <Route path="products" element={<SellerProducts />} />
+                    <Route path="orders" element={<SellerOrders />} />
+                    <Route path="kyc" element={<SellerKYC />} />
+                    <Route path="payouts" element={<SellerPayouts />} />
+                  </Route>
+
+                  {/* Rider app */}
+                  <Route path="/rider/login" element={<RiderLogin />} />
+                  <Route path="/rider" element={<RiderApp />} />
 
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
