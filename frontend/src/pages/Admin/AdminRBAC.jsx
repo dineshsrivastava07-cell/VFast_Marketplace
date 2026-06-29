@@ -34,12 +34,24 @@ export default function AdminRBAC() {
     });
   };
   const save = async (role) => {
-    await api.post(`/admin/rbac/${role}`, { permissions: editing[role] });
-    toast.success(`${role} permissions saved`);
+    try {
+      await api.post(`/admin/rbac/${role}`, { permissions: editing[role] });
+      toast.success(`${role} permissions saved`);
+    } catch (e) {
+      if (e.response?.status === 403) {
+        toast.error("Only Super Admin can change role permissions.");
+      } else {
+        toast.error(e.response?.data?.detail || "Could not save permissions");
+      }
+    }
   };
   const setUserRole = async (uid, role) => {
-    await api.post(`/admin/rbac/users/${uid}/role`, { role });
-    toast.success("Role updated"); refresh();
+    try {
+      await api.post(`/admin/rbac/users/${uid}/role`, { role });
+      toast.success("Role updated"); refresh();
+    } catch (e) {
+      toast.error(e.response?.status === 403 ? "Only Super Admin can change user roles." : "Could not update role");
+    }
   };
 
   if (!data) return <div className="text-gray-500">Loading…</div>;
