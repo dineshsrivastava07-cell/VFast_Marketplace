@@ -82,3 +82,29 @@ Customer (India), Super Admin, Admin, Operations, Seller (Phase 3), Delivery Par
 1. Push to GitHub repo `VFast_Marketplace` via Emergent Save-to-GitHub (CI workflows already included).
 2. Deploy via Emergent Deploy button → live URL.
 3. Begin DPDP compliance console + real SMS/Email/Push provider wiring once user provides MSG91 / Resend / FCM keys.
+
+---
+
+## Phase 7 — Auth & UX hardening (Feb 2026) ✅ COMPLETE (iter11 = 100% pass)
+
+11 fixes implemented end-to-end with both backend + frontend tested:
+1. Role-aware logout redirects (Header / AdminLayout / SellerLayout / RiderApp).
+2. Customer (`/login`) and Staff (`/admin/login`) sign-in pages are now fully separate.
+3. Customer phone input enforces `+91` prefix with clear helper text.
+4. Forgot-password modal + `/reset-password?token=` page for staff; `Resend OTP` for customers.
+5. Super-admin `Reset PW` modal in AdminUsers + per-row rights chips (via `GET /api/admin/rbac/summary`).
+6. Admins can only `active`-toggle users. No `DELETE /api/admin/users/{id}` endpoint exists.
+7. Customer addresses are editable via `PATCH /api/customer/addresses/{id}` + Profile edit UI.
+8. Rider creation merged into AdminUsers (rider extras shown when role=delivery_partner); AdminRiders no longer has Add.
+9. Google Sign-In (graceful): `/api/auth/google/config` + `/customer` + `/staff` endpoints; disabled "coming soon" pill when `GOOGLE_CLIENT_ID` unset.
+10. Email config UI in `Admin Settings → Email config` with API key + sender + per-trigger toggles; `services/email.apply_email_config` applies at runtime (mock fallback preserved).
+11. End-to-end test pass: 25/25 backend tests + frontend smoke incl. all login/users/settings/profile flows green.
+
+### Open low-priority items from iter11
+- (Low) Catch `pymongo.DuplicateKeyError` in PATCH /admin/users for email duplicates beyond phone (phone is now caught and returns 409).
+- (Low) DNS for `vfast.co.in` — user must update GoDaddy A record (Cloudflare 104.x → Emergent host IP).
+
+### Pending future enhancements (P1/P2)
+- Migrate `/admin/inventory` reads to `db.inventory` (drop `db.products` mirror).
+- React Native + Expo mobile app.
+- Live MSG91 / FCM provider wiring (Resend wiring is now ready, just paste key in admin UI).

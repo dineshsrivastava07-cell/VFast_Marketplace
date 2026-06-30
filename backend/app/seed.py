@@ -458,11 +458,16 @@ async def run_seed(db):
         })
 
     demo_phone = os.environ.get("DEMO_CUSTOMER_PHONE")
-    if demo_phone and not await db.users.find_one({"phone": demo_phone}):
-        await db.users.insert_one({
-            "id": new_id(), "phone": demo_phone, "name": "Demo Customer",
-            "role": "customer", "created_at": now_iso(),
-        })
+    if demo_phone:
+        existing = await db.users.find_one({"phone": demo_phone})
+        if not existing:
+            await db.users.insert_one({
+                "id": new_id(), "phone": demo_phone, "name": "Demo Customer",
+                "role": "customer", "active": True, "created_at": now_iso(),
+            })
+        elif existing.get("active") is False:
+            # Re-activate on every boot so demo / test runs aren't blocked.
+            await db.users.update_one({"id": existing["id"]}, {"$set": {"active": True}})
 
     if await db.qr_codes.count_documents({}) == 0:
         await db.qr_codes.insert_one({

@@ -1,6 +1,6 @@
 # VFast — Active session changelog (Feb 2026 — auth & UX hardening)
 
-## Auth refactor (Fixes 1–11)
+## Auth refactor (Fixes 1–11)  — Feb 2026 — iter 11 = 100% pass
 - **Fix 1 — Role-aware logouts**:
     - Customers logout from Header → `/`
     - Staff/seller/rider logout from Header → `/admin/login`

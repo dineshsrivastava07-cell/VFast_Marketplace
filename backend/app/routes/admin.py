@@ -269,7 +269,15 @@ async def patch_user(user_id: str, payload: dict, request: Request,
         for k in ("phone", "vehicle", "kyc", "rider_status"):
             if k in payload:
                 update[k] = payload[k]
-    await db.users.update_one({"id": user_id}, {"$set": update})
+    try:
+        await db.users.update_one({"id": user_id}, {"$set": update})
+    except Exception as exc:
+        msg = str(exc).lower()
+        if "duplicate" in msg and "phone" in msg:
+            raise HTTPException(status_code=409, detail="That phone number is already linked to another user.")
+        if "duplicate" in msg and "email" in msg:
+            raise HTTPException(status_code=409, detail="That email is already linked to another user.")
+        raise
     await log_action(db, user, "user.patch", "user", user_id, {k: v for k, v in update.items() if k != "password_hash"})
     return {"ok": True}
 
