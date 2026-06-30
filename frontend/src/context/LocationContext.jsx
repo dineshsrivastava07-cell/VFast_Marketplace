@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import api from "../lib/api";
 
 const Ctx = createContext(null);
-
 const STORAGE_KEY = "vfast_loc_v1";
 
 export function LocationProvider({ children }) {
@@ -10,17 +9,23 @@ export function LocationProvider({ children }) {
   const [serviceability, setServiceability] = useState(null);
   const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
-    if (!/^\d{6}$/.test(pincode)) { setServiceability(null); return; }
+  const runCheck = useCallback((pin) => {
+    if (!/^\d{6}$/.test(pin)) { setServiceability(null); return; }
+    setServiceability(null);
     setChecking(true);
-    api.get(`/serviceability/check/${pincode}`)
+    api.get(`/serviceability/check/${pin}`)
       .then((r) => setServiceability(r.data))
+      .catch(() => setServiceability({ serviceable: false, pincode: pin }))
       .finally(() => setChecking(false));
-    localStorage.setItem(STORAGE_KEY, pincode);
-  }, [pincode]);
+    localStorage.setItem(STORAGE_KEY, pin);
+  }, []);
+
+  useEffect(() => {
+    if (pincode) runCheck(pincode);
+  }, [pincode, runCheck]);
 
   return (
-    <Ctx.Provider value={{ pincode, setPincode, serviceability, checking }}>
+    <Ctx.Provider value={{ pincode, setPincode, serviceability, setServiceability, checking, runCheck }}>
       {children}
     </Ctx.Provider>
   );
