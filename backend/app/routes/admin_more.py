@@ -480,6 +480,27 @@ async def inventory_list(request: Request, store_id: Optional[str] = None,
     return products
 
 
+@router.post("/inventory/sync-from-catalog")
+async def sync_inventory_from_catalog(request: Request, user=Depends(require_roles(*ADMINS))):
+    """Upsert an inventory record for every product. MUST be declared before
+    the dynamic /inventory/{product_id} route, otherwise FastAPI will match
+    the dynamic one with product_id='sync-from-catalog'."""
+    db = request.state.db
+    upserted = 0
+    async for p in db.products.find({}, {"_id": 0, "id": 1, "stock": 1, "reorder_level": 1}):
+        await db.inventory.update_one(
+            {"product_id": p["id"]},
+            {"$set": {"product_id": p["id"],
+                       "stock": p.get("stock", 0),
+                       "reorder_level": p.get("reorder_level", 5),
+                       "updated_at": now_iso()}},
+            upsert=True,
+        )
+        upserted += 1
+    await log_action(db, user, "inventory.sync_from_catalog", "inventory", "*", {"count": upserted})
+    return {"ok": True, "synced": upserted}
+
+
 @router.post("/inventory/{product_id}")
 async def update_inventory(product_id: str, payload: dict, request: Request,
                            user=Depends(require_roles(*STAFF))):
@@ -710,10 +731,23 @@ async def import_pins_csv(request: Request, file: UploadFile = File(...),
     return {"created": created, "updated": updated}
 
 
-@router.get("/pincodes/waitlist")
-async def waitlist(request: Request, _u=Depends(require_roles(*STAFF))):
+@router.post("/orders/{order_no}/confirm-cod")
+async def confirm_cod(order_no: str, request: Request, user=Depends(require_roles(*STAFF))):
     db = request.state.db
-    return await db.pincode_waitlist.find({}, {"_id": 0}).sort("_id", -1).limit(500).to_list(500)
+    order = await db.orders.find_one({"order_no": order_no})
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.get("payment_method") != "cod":
+        raise HTTPException(400, "Order is not COD")
+    if order.get("payment_status") == "collected":
+        raise HTTPException(400, "Already collected")
+    await db.orders.update_one(
+        {"order_no": order_no},
+        {"$set": {"payment_status": "collected", "collected_at": now_iso(),
+                  "collected_by": "backoffice", "collected_by_email": user.get("email")}},
+    )
+    await log_action(db, user, "cod.confirm_backoffice", "order", order_no)
+    return {"ok": True}
 
 
 @router.post("/pincodes/waitlist/{wid}/notify")
@@ -740,41 +774,10 @@ async def notify_waitlist_bulk(request: Request, user=Depends(require_roles(*STA
     return {"ok": True, "notified": r.modified_count}
 
 
-@router.post("/orders/{order_no}/confirm-cod")
-async def confirm_cod(order_no: str, request: Request, user=Depends(require_roles(*STAFF))):
+@router.get("/pincodes/waitlist")
+async def waitlist(request: Request, _u=Depends(require_roles(*STAFF))):
     db = request.state.db
-    order = await db.orders.find_one({"order_no": order_no})
-    if not order:
-        raise HTTPException(404, "Order not found")
-    if order.get("payment_method") != "cod":
-        raise HTTPException(400, "Order is not COD")
-    if order.get("payment_status") == "collected":
-        raise HTTPException(400, "Already collected")
-    await db.orders.update_one(
-        {"order_no": order_no},
-        {"$set": {"payment_status": "collected", "collected_at": now_iso(),
-                  "collected_by": "backoffice", "collected_by_email": user.get("email")}},
-    )
-    await log_action(db, user, "cod.confirm_backoffice", "order", order_no)
-    return {"ok": True}
-
-
-@router.post("/inventory/sync-from-catalog")
-async def sync_inventory_from_catalog(request: Request, user=Depends(require_roles(*ADMINS))):
-    db = request.state.db
-    upserted = 0
-    async for p in db.products.find({}, {"_id": 0, "id": 1, "stock": 1, "reorder_level": 1}):
-        await db.inventory.update_one(
-            {"product_id": p["id"]},
-            {"$set": {"product_id": p["id"],
-                       "stock": p.get("stock", 0),
-                       "reorder_level": p.get("reorder_level", 5),
-                       "updated_at": now_iso()}},
-            upsert=True,
-        )
-        upserted += 1
-    await log_action(db, user, "inventory.sync_from_catalog", "inventory", "*", {"count": upserted})
-    return {"ok": True, "synced": upserted}
+    return await db.pincode_waitlist.find({}, {"_id": 0}).sort("_id", -1).limit(500).to_list(500)
 
 
 @router.get("/qr-codes/preview")
