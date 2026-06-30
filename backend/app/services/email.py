@@ -26,10 +26,16 @@ def apply_email_config(api_key: str | None, sender: str | None) -> None:
 
 
 def _resolve_creds() -> tuple[str, str]:
-    return (
-        _RUNTIME_CFG.get("api_key") or os.environ.get("EMAIL_API_KEY", ""),
-        _RUNTIME_CFG.get("sender") or os.environ.get("EMAIL_FROM", ""),
-    )
+    api_key = _RUNTIME_CFG.get("api_key") or os.environ.get("EMAIL_API_KEY", "")
+    sender = _RUNTIME_CFG.get("sender") or os.environ.get("EMAIL_FROM", "")
+    # If no explicit "Name <email>" sender was set but we know the brand and a
+    # bare email is available, synthesise one. Otherwise leave empty -> mock.
+    if not sender:
+        name = os.environ.get("EMAIL_FROM_NAME", "VFast").strip()
+        bare = os.environ.get("EMAIL_FROM_ADDRESS", "").strip()
+        if bare:
+            sender = f"{name} <{bare}>"
+    return api_key, sender
 
 
 async def send_email(to: str, subject: str, html: str, tag: str = "transactional") -> bool:

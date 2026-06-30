@@ -146,10 +146,26 @@ def _google_client_id() -> Optional[str]:
     return cid or None
 
 
+def _google_client_secret() -> Optional[str]:
+    sec = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    return sec or None
+
+
+def _google_redirect_uri() -> str:
+    return os.environ.get(
+        "GOOGLE_REDIRECT_URI",
+        "https://vfast.co.in/api/auth/google/callback",
+    ).strip()
+
+
 @router.get("/google/config")
 async def google_config():
     """Frontend reads this to know whether to show the Google button."""
-    return {"enabled": bool(_google_client_id()), "client_id": _google_client_id()}
+    return {
+        "enabled": bool(_google_client_id()),
+        "client_id": _google_client_id(),
+        "redirect_uri": _google_redirect_uri(),
+    }
 
 
 def _verify_google_id_token(credential: str) -> dict:
