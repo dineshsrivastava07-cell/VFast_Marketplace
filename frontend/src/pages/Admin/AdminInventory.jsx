@@ -48,7 +48,14 @@ export default function AdminInventory() {
       </div>
 
       {tab === "inventory" && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button data-testid="sync-from-catalog" onClick={async () => {
+              try { const r = await api.post("/admin/inventory/sync-from-catalog", {}); toast.success(`Synced ${r.data.synced} SKUs from catalog`); refresh(); }
+              catch (e) { toast.error("Failed"); }
+            }} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold bg-white">↺ Sync from Catalog</button>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-gray-500"><tr>
               <th className="py-2 px-3">Product</th><th className="py-2 px-3">Brand</th><th className="py-2 px-3">Stock</th><th className="py-2 px-3">Reorder</th><th className="py-2 px-3">Save</th>
@@ -57,7 +64,7 @@ export default function AdminInventory() {
               {items.map(p => <StockRow key={p.id} p={p} onSave={updateStock} />)}
             </tbody>
           </table>
-        </div>
+        </div></div>
       )}
 
       {tab === "low" && (

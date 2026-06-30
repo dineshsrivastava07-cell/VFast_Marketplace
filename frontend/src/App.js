@@ -44,6 +44,7 @@ import AdminCRM from "./pages/Admin/AdminCRM";
 import AdminAnalytics from "./pages/Admin/AdminAnalytics";
 import AdminSellerKYC from "./pages/Admin/AdminSellerKYC";
 import AdminDPDP from "./pages/Admin/AdminDPDP";
+import AdminCustomers from "./pages/Admin/AdminCustomers";
 
 import SellerLogin from "./pages/Seller/SellerLogin";
 import SellerLayout from "./pages/Seller/SellerLayout";
@@ -117,6 +118,7 @@ function App() {
                     <Route path="analytics" element={<AdminAnalytics />} />
                     <Route path="seller-kyc" element={<AdminSellerKYC />} />
                     <Route path="dpdp" element={<AdminDPDP />} />
+                    <Route path="customers" element={<AdminCustomers />} />
                   </Route>
 
                   {/* Seller portal */}

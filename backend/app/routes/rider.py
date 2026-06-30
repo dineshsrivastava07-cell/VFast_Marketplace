@@ -118,12 +118,19 @@ async def rider_deliver(order_no: str, payload: dict, request: Request,
         "notes": payload.get("notes", ""),
         "at": now_iso(),
     }
+    set_doc = {"status": "delivered", "pod": pod, "delivered_at": now_iso()}
+    if payload.get("cod_collected"):
+        set_doc.update({"payment_status": "collected", "collected_at": now_iso(),
+                         "collected_by": "rider"})
+    if payload.get("cod_collected_amount") is not None:
+        try:
+            set_doc["cod_collected_amount"] = float(payload["cod_collected_amount"])
+        except (TypeError, ValueError):
+            pass
     update = {
-        "$set": {"status": "delivered", "pod": pod, "delivered_at": now_iso()},
+        "$set": set_doc,
         "$push": {"timeline": {"status": "delivered", "at": now_iso(), "pod": pod}},
     }
-    if payload.get("cod_collected"):
-        update["$set"].update({"payment_status": "collected", "collected_at": now_iso()})
     r = await db.orders.update_one(
         {"order_no": order_no, "rider_id": user["id"]}, update,
     )

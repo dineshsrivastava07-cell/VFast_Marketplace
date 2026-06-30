@@ -23,6 +23,7 @@ const NAV = [
   { to: "/admin/rbac", icon: Shield, label: "Roles & permissions" },
   { to: "/admin/audit", icon: FileSearch, label: "Audit log" },
   { to: "/admin/users", icon: Users, label: "Users" },
+  { to: "/admin/customers", icon: UserCheck, label: "Customers" },
   { to: "/admin/settings", icon: SettingsIcon, label: "Settings" },
 ];
 

@@ -75,7 +75,23 @@ export default function AdminCatalog() {
 
       {tab === "products" && (
         <>
-          <div className="flex justify-end"><button data-testid="add-product-btn" onClick={() => { setEditing({ _isNew: true, slug: "", name: "", brand: "", category_slug: "", subcategory_slug: "", image: "", price: 0, mrp: 0, pack_size: "", unit: "g", unit_value: 0, veg_type: "veg", stock: 0, reorder_level: 5, eta_minutes: 12, storage: "ambient", country_of_origin: "India" }); setCreating(true); }} className="btn-primary px-3 py-2 text-sm">+ Add product</button></div>
+          <div className="flex justify-end gap-2">
+            <button data-testid="catalog-export-btn" onClick={() => {
+              const headers = ["id","slug","name","brand","category_slug","subcategory_slug","price","mrp","pack_size","unit_value","unit","veg_type","stock","reorder_level","eta_minutes","image","hsn_code","fssai_no","storage","country_of_origin","shelf_life_days","description"];
+              const escape = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+              const rows = products.map((p) => ({
+                ...p,
+                category_slug: catTree.find((c) => c.id === p.category_id)?.slug || "",
+                subcategory_slug: catTree.find((c) => c.id === p.subcategory_id)?.slug || "",
+              }));
+              const csvBody = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+              const blob = new Blob([csvBody], { type: "text/csv;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = "vfast-catalog-export.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm font-semibold bg-white">⬇ Export CSV</button>
+            <button data-testid="add-product-btn" onClick={() => { setEditing({ _isNew: true, slug: "", name: "", brand: "", category_slug: "", subcategory_slug: "", image: "", price: 0, mrp: 0, pack_size: "", unit: "g", unit_value: 0, veg_type: "veg", stock: 0, reorder_level: 5, eta_minutes: 12, storage: "ambient", country_of_origin: "India" }); setCreating(true); }} className="btn-primary px-3 py-2 text-sm">+ Add product</button>
+          </div>
           <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase text-gray-500"><tr>

@@ -28,5 +28,11 @@ async def notify_me(payload: dict, request: Request):
     if not PIN_RE.match(pincode) or not contact:
         raise HTTPException(status_code=400, detail="pincode and contact required")
     db = request.state.db
-    await db.pincode_waitlist.insert_one({"pincode": pincode, "contact": contact})
+    await db.pincode_waitlist.insert_one({
+        "id": __import__("uuid").uuid4().hex,
+        "pincode": pincode,
+        "contact": contact,
+        "status": "pending",
+        "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+    })
     return {"ok": True}

@@ -15,7 +15,8 @@ export default function RiderApp() {
   const [earnings, setEarnings] = useState(null);
   const [tab, setTab] = useState("active");
   const [deliverFor, setDeliverFor] = useState(null);
-  const [pod, setPod] = useState({ photo_url: "", signed_by: "", notes: "", cod_collected: false });
+  const [pod, setPod] = useState({ photo_url: "", signed_by: "", notes: "", cod_collected: false, cod_collected_amount: 0 });
+  const [successFlash, setSuccessFlash] = useState(false);
 
   const refresh = async () => {
     try {
@@ -67,12 +68,33 @@ export default function RiderApp() {
 
   const submitDelivery = async () => {
     if (!pod.signed_by) { toast.error("Capture recipient name"); return; }
+    if (deliverFor.payment_method === "cod" && !pod.photo_url) {
+      toast.error("Photo is required for COD orders");
+      return;
+    }
+    if (deliverFor.payment_method === "cod" && !pod.cod_collected) {
+      toast.error(`Please confirm you collected ₹${deliverFor.total} cash`);
+      return;
+    }
     try {
-      await api.post(`/rider/orders/${deliverFor.order_no}/deliver`, pod);
-      toast.success("Delivered ✔");
-      setDeliverFor(null); setPod({ photo_url: "", signed_by: "", notes: "", cod_collected: false });
-      refresh();
+      const body = { ...pod };
+      if (deliverFor.payment_method === "cod") {
+        body.cod_collected_amount = parseFloat(pod.cod_collected_amount) || deliverFor.total;
+      }
+      await api.post(`/rider/orders/${deliverFor.order_no}/deliver`, body);
+      setSuccessFlash(true);
+      setTimeout(() => {
+        setSuccessFlash(false);
+        setDeliverFor(null);
+        setPod({ photo_url: "", signed_by: "", notes: "", cod_collected: false, cod_collected_amount: 0 });
+        refresh();
+      }, 1800);
     } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
+  };
+
+  const openDelivery = (o) => {
+    setPod({ photo_url: "", signed_by: "", notes: "", cod_collected: false, cod_collected_amount: o.total });
+    setDeliverFor(o);
   };
 
   const OrderCard = ({ o, mode }) => (
@@ -93,7 +115,7 @@ export default function RiderApp() {
         {mode === "available" && <button data-testid={`accept-${o.order_no}`} onClick={() => accept(o.order_no)} className="btn-primary py-1.5 px-3 text-xs">Accept</button>}
         {mode === "active" && o.status === "packed" && <button data-testid={`pickup-${o.order_no}`} onClick={() => pickup(o.order_no)} className="btn-primary py-1.5 px-3 text-xs">Mark picked up</button>}
         {mode === "active" && o.status === "out_for_delivery" && (
-          <button data-testid={`deliver-${o.order_no}`} onClick={() => setDeliverFor(o)} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Mark delivered</button>
+          <button data-testid={`deliver-${o.order_no}`} onClick={() => openDelivery(o)} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Mark delivered</button>
         )}
         {mode === "active" && o.payment_method === "cod" && o.payment_status !== "collected" && (
           <button data-testid={`cod-${o.order_no}`} onClick={() => codMark(o.order_no)} className="border border-emerald-500 text-emerald-700 rounded-lg py-1.5 px-3 text-xs flex items-center gap-1"><IndianRupee className="h-3.5 w-3.5" />Mark COD collected</button>
@@ -182,26 +204,62 @@ export default function RiderApp() {
       {/* Delivery modal */}
       {deliverFor && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3" data-testid="deliver-modal">
-          <div className="bg-white w-full max-w-md rounded-2xl p-4">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-display font-bold">Proof of delivery</h3>
-              <button onClick={() => setDeliverFor(null)} className="text-xs text-gray-500">Cancel</button>
-            </div>
-            <div className="text-xs text-gray-500 mb-2">Order <span className="font-mono">{deliverFor.order_no}</span> · ₹{deliverFor.total} · {deliverFor.payment_method?.toUpperCase()}</div>
-            <input data-testid="pod-name" placeholder="Received by (name)" value={pod.signed_by} onChange={(e) => setPod({ ...pod, signed_by: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-2" />
-            <label className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 cursor-pointer text-sm">
-              <Upload className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-600 text-xs">{pod.photo_url ? "Photo uploaded ✓" : "Upload photo at door (optional)"}</span>
-              <input data-testid="pod-photo" type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => uploadPodPhoto(e.target.files?.[0])} />
-            </label>
-            <input data-testid="pod-notes" placeholder="Notes (optional)" value={pod.notes} onChange={(e) => setPod({ ...pod, notes: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mt-2" />
-            {deliverFor.payment_method === "cod" && (
-              <label className="flex items-center gap-2 mt-2 text-sm">
-                <input type="checkbox" data-testid="pod-cod" checked={pod.cod_collected} onChange={(e) => setPod({ ...pod, cod_collected: e.target.checked })} />
-                COD cash collected
-              </label>
+          <div className="bg-white w-full max-w-md rounded-2xl p-4 max-h-[92vh] overflow-y-auto">
+            {successFlash ? (
+              <div className="py-10 text-center" data-testid="deliver-success-flash">
+                <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                  <CheckCircle2 className="h-12 w-12 text-emerald-600 animate-pulse" />
+                </div>
+                <div className="font-display text-xl font-extrabold text-emerald-700">Delivered!</div>
+                <div className="text-xs text-gray-500 mt-1">Order {deliverFor.order_no} marked as delivered.</div>
+                {deliverFor.payment_method === "cod" && pod.cod_collected && (
+                  <div className="text-xs text-emerald-700 mt-1 font-semibold">₹{pod.cod_collected_amount || deliverFor.total} cash collected ✓</div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-display font-bold">Proof of delivery</h3>
+                  <button onClick={() => setDeliverFor(null)} className="text-xs text-gray-500">Cancel</button>
+                </div>
+                <div className="text-xs text-gray-500 mb-2">Order <span className="font-mono">{deliverFor.order_no}</span> · ₹{deliverFor.total} · {deliverFor.payment_method?.toUpperCase()}</div>
+
+                <input data-testid="pod-name" placeholder="Received by (name)" value={pod.signed_by} onChange={(e) => setPod({ ...pod, signed_by: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-2" />
+
+                {/* Big camera button */}
+                <label className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer ${pod.photo_url ? "border-emerald-400 bg-emerald-50" : "border-gray-300"}`}>
+                  {pod.photo_url ? (
+                    <>
+                      <img src={pod.photo_url} alt="POD" className="h-32 w-full object-cover rounded-lg" data-testid="pod-photo-preview" />
+                      <span className="text-xs text-emerald-700 font-semibold">✓ Photo captured — tap to retake</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-10 w-10 text-gray-400" />
+                      <span className="text-sm font-bold">Capture photo at doorstep</span>
+                      <span className="text-[10px] text-gray-500">{deliverFor.payment_method === "cod" ? "Required for COD orders" : "Optional"}</span>
+                    </>
+                  )}
+                  <input data-testid="pod-photo" type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => uploadPodPhoto(e.target.files?.[0])} />
+                </label>
+
+                <input data-testid="pod-notes" placeholder="Notes (optional)" value={pod.notes} onChange={(e) => setPod({ ...pod, notes: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mt-2" />
+
+                {deliverFor.payment_method === "cod" && (
+                  <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200" data-testid="cod-confirm-block">
+                    <div className="text-xs uppercase text-amber-700 font-bold mb-1">COD Collection</div>
+                    <div className="font-display text-2xl font-extrabold text-amber-900 mb-1">Collect ₹{deliverFor.total}</div>
+                    <label className="block text-xs text-gray-600 mt-2 mb-1">Amount collected</label>
+                    <input data-testid="cod-amount" type="number" value={pod.cod_collected_amount} onChange={(e) => setPod({ ...pod, cod_collected_amount: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold" />
+                    <label className="flex items-start gap-2 mt-2 text-sm">
+                      <input type="checkbox" data-testid="pod-cod" checked={pod.cod_collected} onChange={(e) => setPod({ ...pod, cod_collected: e.target.checked })} className="mt-1" />
+                      <span>I confirm I collected ₹{pod.cod_collected_amount || deliverFor.total} cash from the customer.</span>
+                    </label>
+                  </div>
+                )}
+                <button data-testid="confirm-deliver" onClick={submitDelivery} className="mt-3 w-full btn-primary py-3 text-base font-bold">Confirm delivery</button>
+              </>
             )}
-            <button data-testid="confirm-deliver" onClick={submitDelivery} className="mt-3 w-full btn-primary py-2.5">Confirm delivery</button>
           </div>
         </div>
       )}

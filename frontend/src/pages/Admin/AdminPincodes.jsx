@@ -80,14 +80,38 @@ export default function AdminPincodes() {
       </>}
 
       {tab === "waitlist" && (
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto" data-testid="waitlist-list">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-gray-500"><tr><th className="py-2 px-3">PIN</th><th className="py-2 px-3">Contact</th></tr></thead>
-            <tbody>
-              {waitlist.map((w, i) => <tr key={i} className="border-t border-gray-100"><td className="py-2 px-3 font-semibold">{w.pincode}</td><td className="py-2 px-3">{w.contact}</td></tr>)}
-              {waitlist.length === 0 && <tr><td colSpan={2} className="py-4 text-center text-gray-500">No "notify me" requests yet.</td></tr>}
-            </tbody>
-          </table>
+        <div className="space-y-2" data-testid="waitlist-list">
+          <div className="flex justify-end">
+            <button data-testid="waitlist-notify-bulk" onClick={async () => {
+              try { const r = await api.post("/admin/pincodes/waitlist/notify-bulk"); toast.success(`Notified ${r.data.notified} pending entries`); refresh(); }
+              catch { toast.error("Failed"); }
+            }} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold">Bulk notify all pending</button>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase text-gray-500"><tr>
+                <th className="py-2 px-3">PIN</th><th className="py-2 px-3">Contact</th><th className="py-2 px-3">Requested</th><th className="py-2 px-3">Status</th><th className="py-2 px-3">Actions</th>
+              </tr></thead>
+              <tbody>
+                {waitlist.map((w) => (
+                  <tr key={w.id || `${w.pincode}-${w.contact}`} className="border-t border-gray-100" data-testid={`waitlist-${w.id || w.pincode}`}>
+                    <td className="py-2 px-3 font-semibold">{w.pincode}</td>
+                    <td className="py-2 px-3 text-xs">{w.contact}</td>
+                    <td className="py-2 px-3 text-xs text-gray-500">{w.created_at ? new Date(w.created_at).toLocaleString("en-IN") : "—"}</td>
+                    <td className="py-2 px-3"><span className={`text-xs px-2 py-0.5 rounded-md ${w.status === "notified" ? "bg-emerald-50 text-emerald-700" : w.status === "converted" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{w.status || "pending"}</span></td>
+                    <td className="py-2 px-3 space-x-2 text-xs">
+                      {w.status !== "notified" && w.id && <button data-testid={`notify-${w.id}`} onClick={async () => {
+                        try { await api.post(`/admin/pincodes/waitlist/${w.id}/notify`); toast.success("Notified"); refresh(); }
+                        catch { toast.error("Failed"); }
+                      }} className="text-[#E4002B] font-semibold">Notify</button>}
+                      <button data-testid={`convert-${w.pincode}`} onClick={() => { setTab("pins"); setForm({ ...form, pincode: w.pincode }); }} className="text-blue-600 font-semibold">Convert to serviceable</button>
+                    </td>
+                  </tr>
+                ))}
+                {waitlist.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-gray-500">No &quot;notify me&quot; requests yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

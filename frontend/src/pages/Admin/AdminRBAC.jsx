@@ -60,7 +60,7 @@ export default function AdminRBAC() {
     <div className="space-y-6" data-testid="admin-rbac-page">
       <h1 className="font-display text-2xl font-bold">Roles & permissions</h1>
       <div className="space-y-4">
-        {data.roles.map(role => (
+        {data.roles.filter((r) => r.role !== "customer").map(role => (
           <div key={role.role} className="bg-white border border-gray-100 rounded-2xl p-4" data-testid={`role-${role.role}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="font-display font-bold uppercase">{role.role.replace(/_/g, " ")}</div>
@@ -89,18 +89,19 @@ export default function AdminRBAC() {
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl p-4">
-        <div className="font-display font-bold mb-3">Assign role to user</div>
+        <div className="font-display font-bold mb-1">Assign role to user</div>
+        <p className="text-xs text-gray-500 mb-3">Customer accounts are managed in the Customers tab. Only operational roles are shown here.</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-gray-500"><tr><th className="py-2 px-3">Name</th><th className="py-2 px-3">Email / Phone</th><th className="py-2 px-3">Role</th></tr></thead>
             <tbody>
-              {users.map(u => (
+              {users.filter((u) => u.role !== "customer").map(u => (
                 <tr key={u.id} className="border-t border-gray-100">
                   <td className="py-2 px-3 font-semibold">{u.name || "—"}</td>
                   <td className="py-2 px-3 text-xs">{u.email || u.phone}</td>
                   <td className="py-2 px-3">
                     <select data-testid={`user-role-${u.id}`} value={u.role} onChange={(e) => setUserRole(u.id, e.target.value)} className="px-2 py-1 rounded-md border border-gray-200 text-xs">
-                      {data.roles.map(r => <option key={r.role} value={r.role}>{r.role}</option>)}
+                      {data.roles.filter((r) => r.role !== "customer").map(r => <option key={r.role} value={r.role}>{r.role}</option>)}
                     </select>
                   </td>
                 </tr>

@@ -359,6 +359,15 @@ async def create_product(payload: dict, request: Request,
         "created_at": now_iso(),
     }
     await db.products.insert_one(doc.copy())
+    # Auto-create matching inventory record so AdminInventory shows it immediately.
+    await db.inventory.update_one(
+        {"product_id": doc["id"]},
+        {"$set": {
+            "product_id": doc["id"], "stock": doc["stock"],
+            "reorder_level": doc["reorder_level"], "updated_at": now_iso(),
+        }},
+        upsert=True,
+    )
     await log_action(db, user, "product.create", "product", doc["id"], {"name": doc["name"]})
     doc.pop("_id", None)
     return doc
@@ -380,6 +389,14 @@ async def update_product(prod_id: str, payload: dict, request: Request,
     r = await db.products.update_one({"id": prod_id}, {"$set": update})
     if not r.matched_count:
         raise HTTPException(404, "Product not found")
+    # Mirror stock/reorder into inventory collection
+    inv_set = {}
+    if "stock" in update: inv_set["stock"] = update["stock"]
+    if "reorder_level" in update: inv_set["reorder_level"] = update["reorder_level"]
+    if inv_set:
+        inv_set["updated_at"] = now_iso()
+        await db.inventory.update_one({"product_id": prod_id},
+                                       {"$set": {"product_id": prod_id, **inv_set}}, upsert=True)
     await log_action(db, user, "product.update", "product", prod_id, update)
     updated = await db.products.find_one({"id": prod_id}, {"_id": 0})
     return updated or {"ok": True}
@@ -697,6 +714,67 @@ async def import_pins_csv(request: Request, file: UploadFile = File(...),
 async def waitlist(request: Request, _u=Depends(require_roles(*STAFF))):
     db = request.state.db
     return await db.pincode_waitlist.find({}, {"_id": 0}).sort("_id", -1).limit(500).to_list(500)
+
+
+@router.post("/pincodes/waitlist/{wid}/notify")
+async def notify_waitlist(wid: str, request: Request, user=Depends(require_roles(*STAFF))):
+    db = request.state.db
+    r = await db.pincode_waitlist.update_one(
+        {"id": wid},
+        {"$set": {"status": "notified", "notified_at": now_iso(), "notified_by": user.get("email")}},
+    )
+    if not r.matched_count:
+        raise HTTPException(404, "Waitlist entry not found")
+    await log_action(db, user, "waitlist.notify", "waitlist", wid)
+    return {"ok": True}
+
+
+@router.post("/pincodes/waitlist/notify-bulk")
+async def notify_waitlist_bulk(request: Request, user=Depends(require_roles(*STAFF))):
+    db = request.state.db
+    r = await db.pincode_waitlist.update_many(
+        {"status": {"$in": [None, "pending"]}},
+        {"$set": {"status": "notified", "notified_at": now_iso(), "notified_by": user.get("email")}},
+    )
+    await log_action(db, user, "waitlist.notify_bulk", "waitlist", "*", {"count": r.modified_count})
+    return {"ok": True, "notified": r.modified_count}
+
+
+@router.post("/orders/{order_no}/confirm-cod")
+async def confirm_cod(order_no: str, request: Request, user=Depends(require_roles(*STAFF))):
+    db = request.state.db
+    order = await db.orders.find_one({"order_no": order_no})
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.get("payment_method") != "cod":
+        raise HTTPException(400, "Order is not COD")
+    if order.get("payment_status") == "collected":
+        raise HTTPException(400, "Already collected")
+    await db.orders.update_one(
+        {"order_no": order_no},
+        {"$set": {"payment_status": "collected", "collected_at": now_iso(),
+                  "collected_by": "backoffice", "collected_by_email": user.get("email")}},
+    )
+    await log_action(db, user, "cod.confirm_backoffice", "order", order_no)
+    return {"ok": True}
+
+
+@router.post("/inventory/sync-from-catalog")
+async def sync_inventory_from_catalog(request: Request, user=Depends(require_roles(*ADMINS))):
+    db = request.state.db
+    upserted = 0
+    async for p in db.products.find({}, {"_id": 0, "id": 1, "stock": 1, "reorder_level": 1}):
+        await db.inventory.update_one(
+            {"product_id": p["id"]},
+            {"$set": {"product_id": p["id"],
+                       "stock": p.get("stock", 0),
+                       "reorder_level": p.get("reorder_level", 5),
+                       "updated_at": now_iso()}},
+            upsert=True,
+        )
+        upserted += 1
+    await log_action(db, user, "inventory.sync_from_catalog", "inventory", "*", {"count": upserted})
+    return {"ok": True, "synced": upserted}
 
 
 @router.get("/qr-codes/preview")

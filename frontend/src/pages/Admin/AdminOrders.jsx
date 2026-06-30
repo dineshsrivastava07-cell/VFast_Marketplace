@@ -104,6 +104,21 @@ export default function AdminOrders() {
     URL.revokeObjectURL(url);
   };
 
+  const confirmCod = async (orderNo) => {
+    if (!window.confirm(`Confirm COD collected for ${orderNo}? This is immutable.`)) return;
+    try { await api.post(`/admin/orders/${orderNo}/confirm-cod`); toast.success("COD marked collected"); refresh(); }
+    catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
+  };
+
+  // COD summary for the bottom row
+  const codStats = orders.reduce((acc, o) => {
+    if (o.payment_method !== "cod") return acc;
+    acc.total += 1;
+    if (o.payment_status === "collected") { acc.collected += 1; acc.amount += o.total || 0; }
+    else { acc.pending += 1; }
+    return acc;
+  }, { total: 0, collected: 0, pending: 0, amount: 0 });
+
   return (
     <div className="space-y-4" data-testid="admin-orders-page">
       <div className="flex flex-wrap items-center gap-2 justify-between">
@@ -157,6 +172,7 @@ export default function AdminOrders() {
               <th className="py-2 px-3">Customer / PIN</th>
               <th className="py-2 px-3">Total</th>
               <th className="py-2 px-3">Pay</th>
+              <th className="py-2 px-3">COD</th>
               <th className="py-2 px-3">SLA</th>
               <th className="py-2 px-3">Rider</th>
               <th className="py-2 px-3">Status</th>
@@ -174,6 +190,11 @@ export default function AdminOrders() {
                   <td className="py-2 px-3 text-xs">{o.customer_phone}<div className="text-[10px] text-gray-500">{o.address?.pincode}</div></td>
                   <td className="py-2 px-3 font-semibold">₹{o.total}</td>
                   <td className="py-2 px-3 uppercase text-xs">{o.payment_method}</td>
+                  <td className="py-2 px-3 text-xs">
+                    {o.payment_method !== "cod" ? <span className="text-gray-300">—</span>
+                      : o.payment_status === "collected" ? <span className="text-emerald-700 font-semibold" data-testid={`cod-status-${o.order_no}`}>✓ Collected</span>
+                      : <span className="text-amber-700 font-semibold" data-testid={`cod-status-${o.order_no}`}>⏳ Pending</span>}
+                  </td>
                   <td className="py-2 px-3">{slaInfo ? <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-md ${color}`}>{slaInfo.elapsed_min}m / {slaInfo.eta_minutes}m</span> : "—"}</td>
                   <td className="py-2 px-3 text-xs">
                     <select data-testid={`assign-rider-${o.order_no}`} value={o.rider_id || ""} onChange={(e) => assignRider(o.order_no, e.target.value)} className="px-2 py-1 rounded-md border border-gray-200 text-xs">
@@ -182,15 +203,27 @@ export default function AdminOrders() {
                     </select>
                   </td>
                   <td className="py-2 px-3"><span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded-md">{o.status}</span></td>
-                  <td className="py-2 px-3 flex gap-1">
+                  <td className="py-2 px-3 flex gap-1 flex-wrap">
                     {NEXT[o.status] && <button data-testid={`advance-${o.order_no}`} onClick={() => advance(o)} className="text-[10px] bg-[#E4002B] text-white px-2 py-1 rounded-md font-semibold">→ {NEXT[o.status]}</button>}
+                    {o.payment_method === "cod" && o.payment_status !== "collected" && (
+                      <button data-testid={`confirm-cod-${o.order_no}`} onClick={() => confirmCod(o.order_no)} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md font-semibold">Confirm COD</button>
+                    )}
                     <button data-testid={`override-${o.order_no}`} onClick={() => override(o.order_no)} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-1 rounded-md font-semibold inline-flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Override</button>
                   </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && <tr><td colSpan={9} className="py-4 text-center text-gray-500">No orders.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={10} className="py-4 text-center text-gray-500">No orders.</td></tr>}
           </tbody>
+          {codStats.total > 0 && (
+            <tfoot data-testid="cod-summary" className="bg-gray-50">
+              <tr className="border-t-2 border-gray-200">
+                <td colSpan={10} className="py-2 px-3 text-xs">
+                  <b>COD summary:</b> {codStats.total} total · <span className="text-emerald-700 font-semibold">{codStats.collected} collected</span> · <span className="text-amber-700 font-semibold">{codStats.pending} pending</span> · ₹{codStats.amount.toLocaleString("en-IN")} collected
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

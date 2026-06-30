@@ -181,3 +181,19 @@ async def seller_mark_packed(order_no: str, request: Request, user=Depends(requi
 async def my_payouts(request: Request, user=Depends(require_roles("seller"))):
     db = request.state.db
     return await db.settlements.find({"seller_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@router.post("/admin/kyc/{kyc_id}/request-info")
+async def request_kyc_info(kyc_id: str, payload: dict, request: Request,
+                            user=Depends(require_roles("super_admin", "admin"))):
+    db = request.state.db
+    message = payload.get("message", "")
+    r = await db.seller_kyc.update_one(
+        {"id": kyc_id},
+        {"$set": {"status": "info_requested", "request_message": message,
+                   "requested_at": now_iso(), "requested_by": user.get("email")}},
+    )
+    if not r.matched_count:
+        raise HTTPException(404, "KYC record not found")
+    await log_action(db, user, "seller.kyc.request_info", "seller_kyc", kyc_id, {"message": message})
+    return {"ok": True}
