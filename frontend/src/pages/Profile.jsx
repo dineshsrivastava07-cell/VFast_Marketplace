@@ -4,16 +4,17 @@ import { useAuth } from "../context/AuthContext";
 import { Helmet } from "../components/Helmet";
 import api from "../lib/api";
 import { toast } from "sonner";
-import { Plus, Trash2, User } from "lucide-react";
+import { Plus, Trash2, User, Pencil } from "lucide-react";
 
 const STATES = ["Andhra Pradesh","Bihar","Delhi","Gujarat","Haryana","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Punjab","Rajasthan","Tamil Nadu","Telangana","Uttar Pradesh","West Bengal"];
+const EMPTY = { label: "Home", flat: "", area: "", landmark: "", city: "New Delhi", state: "Delhi", pincode: "", phone: "", is_default: false };
 
 export default function Profile() {
   const { user, setUser } = useAuth();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [addresses, setAddresses] = useState([]);
-  const [form, setForm] = useState(null);
+  const [form, setForm] = useState(null); // { mode: "create"|"edit", id?, ...address }
 
   useEffect(() => {
     if (!user) return;
@@ -31,15 +32,24 @@ export default function Profile() {
     } catch (e) { toast.error("Failed"); }
   };
 
+  const openCreate = () => setForm({ mode: "create", ...EMPTY, phone: user.phone || "", is_default: addresses.length === 0 });
+  const openEdit = (a) => setForm({ mode: "edit", id: a.id, label: a.label, flat: a.flat, area: a.area, landmark: a.landmark || "", city: a.city, state: a.state, pincode: a.pincode, phone: a.phone, is_default: !!a.is_default });
+
   const saveAddr = async () => {
     try {
-      await api.post("/customer/addresses", form);
-      toast.success("Address saved"); setForm(null);
+      const { mode, id, ...payload } = form;
+      if (mode === "edit" && id) {
+        await api.patch(`/customer/addresses/${id}`, payload);
+      } else {
+        await api.post("/customer/addresses", payload);
+      }
+      toast.success(mode === "edit" ? "Address updated" : "Address saved");
+      setForm(null);
       const r = await api.get("/customer/addresses"); setAddresses(r.data);
     } catch (e) { toast.error(e.response?.data?.detail || "Failed"); }
   };
   const deleteAddr = async (id) => {
-    if (!confirm("Delete address?")) return;
+    if (!window.confirm("Delete address?")) return;
     try { await api.delete(`/customer/addresses/${id}`); setAddresses((a) => a.filter((x) => x.id !== id)); }
     catch { toast.error("Failed"); }
   };
@@ -51,7 +61,7 @@ export default function Profile() {
         <div className="h-12 w-12 rounded-full bg-[#FDE6EA] text-[#E4002B] flex items-center justify-center"><User className="h-6 w-6" /></div>
         <div>
           <h1 className="font-display text-2xl font-bold">{user.name || "VFast Customer"}</h1>
-          <div className="text-xs text-gray-500">{user.phone}</div>
+          <div className="text-xs text-gray-500">{user.phone || user.email}</div>
         </div>
       </div>
 
@@ -67,7 +77,7 @@ export default function Profile() {
       <section className="bg-white border border-gray-100 rounded-2xl p-4">
         <div className="flex justify-between items-center mb-2">
           <h2 className="font-semibold">Saved addresses</h2>
-          <button data-testid="add-address" onClick={() => setForm({ label: "Home", flat: "", area: "", landmark: "", city: "New Delhi", state: "Delhi", pincode: "", phone: user.phone || "", is_default: addresses.length === 0 })} className="text-[#E4002B] font-semibold text-sm flex items-center gap-1"><Plus className="h-4 w-4" />Add address</button>
+          <button data-testid="add-address" onClick={openCreate} className="text-[#E4002B] font-semibold text-sm flex items-center gap-1"><Plus className="h-4 w-4" />Add address</button>
         </div>
         <div className="space-y-2">
           {addresses.map((a) => (
@@ -77,13 +87,17 @@ export default function Profile() {
                 <div className="text-xs text-gray-600">{a.flat}, {a.area} {a.landmark && `· ${a.landmark}`}</div>
                 <div className="text-xs text-gray-500">{a.city}, {a.state} - {a.pincode} · {a.phone}</div>
               </div>
-              <button onClick={() => deleteAddr(a.id)} className="text-red-600 text-xs flex items-center gap-1 self-start"><Trash2 className="h-3 w-3" />Remove</button>
+              <div className="flex flex-col gap-1 items-end">
+                <button data-testid={`edit-addr-${a.id}`} onClick={() => openEdit(a)} className="text-[#E4002B] text-xs flex items-center gap-1"><Pencil className="h-3 w-3" />Edit</button>
+                <button data-testid={`delete-addr-${a.id}`} onClick={() => deleteAddr(a.id)} className="text-red-600 text-xs flex items-center gap-1"><Trash2 className="h-3 w-3" />Remove</button>
+              </div>
             </div>
           ))}
           {!addresses.length && <div className="text-gray-400 text-sm text-center py-4">No addresses saved.</div>}
         </div>
         {form && (
           <div className="mt-4 p-3 border border-gray-100 rounded-xl" data-testid="address-form">
+            <div className="font-semibold text-sm mb-2">{form.mode === "edit" ? "Edit address" : "New address"}</div>
             <div className="grid sm:grid-cols-2 gap-2 text-sm">
               <input data-testid="addr-form-label" placeholder="Label (Home / Office)" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-200" />
               <input data-testid="addr-form-flat" placeholder="Flat / House" value={form.flat} onChange={(e) => setForm({ ...form, flat: e.target.value })} className="px-3 py-2 rounded-lg border border-gray-200" />
@@ -96,7 +110,7 @@ export default function Profile() {
               <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={form.is_default} onChange={(e) => setForm({ ...form, is_default: e.target.checked })} />Set as default</label>
             </div>
             <div className="flex gap-2 mt-3">
-              <button data-testid="save-address" onClick={saveAddr} className="btn-primary py-2 px-4 text-sm">Save address</button>
+              <button data-testid="save-address" onClick={saveAddr} className="btn-primary py-2 px-4 text-sm">{form.mode === "edit" ? "Update address" : "Save address"}</button>
               <button onClick={() => setForm(null)} className="text-gray-500 text-sm">Cancel</button>
             </div>
           </div>

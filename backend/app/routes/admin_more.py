@@ -391,8 +391,10 @@ async def update_product(prod_id: str, payload: dict, request: Request,
         raise HTTPException(404, "Product not found")
     # Mirror stock/reorder into inventory collection
     inv_set = {}
-    if "stock" in update: inv_set["stock"] = update["stock"]
-    if "reorder_level" in update: inv_set["reorder_level"] = update["reorder_level"]
+    if "stock" in update:
+        inv_set["stock"] = update["stock"]
+    if "reorder_level" in update:
+        inv_set["reorder_level"] = update["reorder_level"]
     if inv_set:
         inv_set["updated_at"] = now_iso()
         await db.inventory.update_one({"product_id": prod_id},
@@ -805,6 +807,22 @@ async def get_rbac(request: Request, _u=Depends(require_roles(*ADMINS))):
     return {"modules": MODULES, "actions": ACTIONS, "roles": docs}
 
 
+@router.get("/rbac/summary")
+async def rbac_summary(request: Request, _u=Depends(require_roles(*ADMINS))):
+    """Compact per-role list of modules with at least one allowed action.
+    Used to render rights "chips" next to each user row."""
+    db = request.state.db
+    docs = await db.role_permissions.find({}, {"_id": 0}).to_list(50)
+    if not docs:
+        docs = [{"role": role, "permissions": perms}
+                for role, perms in DEFAULT_PERMISSIONS.items()]
+    out = {}
+    for d in docs:
+        modules = [m for m, acts in (d.get("permissions") or {}).items() if acts]
+        out[d["role"]] = modules
+    return out
+
+
 @router.post("/rbac/{role}")
 async def set_rbac(role: str, payload: dict, request: Request, user=Depends(require_roles("super_admin"))):
     db = request.state.db
@@ -892,16 +910,45 @@ DEFAULT_FLAGS = {
     "dpdp_consent_banner": True,
 }
 
+DEFAULT_EMAIL_CONFIG = {
+    "provider": "resend",   # only "resend" for now
+    "api_key": "",          # paste here; saved to DB and applied at runtime
+    "from": "",             # e.g. "VFast <orders@vfast.co.in>"
+    "triggers": {
+        "order_placed": True,
+        "order_delivered": True,
+        "user_welcome": True,
+        "password_reset": True,
+        "otp_email": False,  # phone OTP is primary
+    },
+}
+
 
 @router.get("/settings")
-async def get_settings(request: Request, _u=Depends(require_roles(*STAFF))):
+async def get_settings(request: Request, user=Depends(require_roles(*STAFF))):
     db = request.state.db
     s = await db.settings.find_one({"id": "global"}, {"_id": 0})
     if not s:
-        s = {"id": "global", "settings": DEFAULT_SETTINGS, "flags": DEFAULT_FLAGS}
+        s = {"id": "global", "settings": DEFAULT_SETTINGS, "flags": DEFAULT_FLAGS,
+              "email_config": DEFAULT_EMAIL_CONFIG}
         await db.settings.insert_one(s.copy())
     s.setdefault("settings", DEFAULT_SETTINGS)
     s.setdefault("flags", DEFAULT_FLAGS)
+    ec = {**DEFAULT_EMAIL_CONFIG, **(s.get("email_config") or {})}
+    # Mask api key for non-super-admin readers
+    if user.get("role") != "super_admin" and ec.get("api_key"):
+        ec = {**ec, "api_key": "*" * 8 + ec["api_key"][-4:]}
+    s["email_config"] = ec
+    # Apply DB-stored creds to in-memory email service config on each read.
+    try:
+        from ..services.email import apply_email_config
+        # Only apply if we have the unmasked key in DB
+        raw = await db.settings.find_one({"id": "global"}, {"_id": 0, "email_config": 1})
+        if raw and raw.get("email_config"):
+            apply_email_config(raw["email_config"].get("api_key"),
+                                raw["email_config"].get("from"))
+    except Exception:
+        pass
     return s
 
 
@@ -913,8 +960,22 @@ async def update_settings(payload: dict, request: Request, user=Depends(require_
         update["settings"] = {**DEFAULT_SETTINGS, **payload["settings"]}
     if "flags" in payload:
         update["flags"] = {**DEFAULT_FLAGS, **payload["flags"]}
+    if "email_config" in payload and user.get("role") == "super_admin":
+        cur = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
+        merged = {**DEFAULT_EMAIL_CONFIG, **(cur.get("email_config") or {}),
+                  **payload["email_config"]}
+        # Don't allow overwriting with masked api key
+        if str(merged.get("api_key", "")).startswith("*"):
+            merged["api_key"] = (cur.get("email_config") or {}).get("api_key", "")
+        update["email_config"] = merged
+        try:
+            from ..services.email import apply_email_config
+            apply_email_config(merged.get("api_key"), merged.get("from"))
+        except Exception:
+            pass
     await db.settings.update_one({"id": "global"}, {"$set": {"id": "global", **update}}, upsert=True)
-    await log_action(db, user, "settings.update", "settings", "global", update)
+    await log_action(db, user, "settings.update", "settings", "global",
+                      {k: ("[redacted]" if k == "email_config" else v) for k, v in update.items()})
     return {"ok": True}
 
 

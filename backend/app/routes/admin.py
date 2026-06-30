@@ -8,8 +8,10 @@ from typing import Optional
 from ..models import PaymentVerifyIn, PincodeIn, QRCodeIn, new_id, now_iso
 from ..security import require_roles, can_admin, hash_password  # noqa: F401
 from ..services.audit import log_action
+from .auth import is_staff_email
 
 VALID_ROLES = {"super_admin", "admin", "operations", "seller", "delivery_partner", "customer"}
+STAFF_ASSIGNABLE_ROLES = {"super_admin", "admin", "operations", "seller", "delivery_partner"}
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -186,28 +188,39 @@ async def create_or_update_user(payload: dict, request: Request,
     """Super-admin-only: create a user by email or update if email exists."""
     db = request.state.db
     email = (payload.get("email") or "").strip().lower()
+    role = payload.get("role")
+    # Staff/seller/rider must be from allowlisted email domains.
+    # Customer accounts may be any email (they typically log in via phone OTP / Google).
+    if role in STAFF_ASSIGNABLE_ROLES and not is_staff_email(email):
+        raise HTTPException(400, detail="Email must be from @vmart.co.in, @vmartretail.com, @limeroad.com, or the two approved personal addresses.")
     password = payload.get("password") or ""
     name = (payload.get("name") or "").strip() or email.split("@")[0].title()
-    role = payload.get("role")
     if not email or not password or role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="email, password and a valid role are required")
     existing = await db.users.find_one({"email": email})
     welcome_target = email
     welcome_name = name
+    extra_fields = {}
+    # Optional rider-specific fields (consolidated rider creation here)
+    if role == "delivery_partner":
+        extra_fields = {
+            "phone": payload.get("phone", ""),
+            "vehicle": payload.get("vehicle", "bike"),
+            "kyc": payload.get("kyc", {"pan": "", "license": "", "verified": False}),
+            "rider_status": payload.get("rider_status", "offline"),
+        }
     if existing:
-        await db.users.update_one(
-            {"id": existing["id"]},
-            {"$set": {"name": name, "role": role,
+        update_set = {"name": name, "role": role,
                        "password_hash": hash_password(password),
-                       "updated_at": now_iso()}},
-        )
+                       "updated_at": now_iso(), **extra_fields}
+        await db.users.update_one({"id": existing["id"]}, {"$set": update_set})
         await log_action(db, user, "user.update", "user", existing["id"], {"role": role, "name": name})
         result = {"ok": True, "id": existing["id"], "action": "updated"}
     else:
         new_user = {
             "id": new_id(), "email": email, "name": name, "role": role,
             "password_hash": hash_password(password), "active": True,
-            "created_at": now_iso(),
+            "created_at": now_iso(), **extra_fields,
         }
         await db.users.insert_one(new_user.copy())
         await log_action(db, user, "user.create", "user", new_user["id"], {"role": role, "email": email})
@@ -215,16 +228,10 @@ async def create_or_update_user(payload: dict, request: Request,
     # Optional welcome email (mocked when EMAIL_API_KEY missing)
     if payload.get("send_welcome", True):
         try:
-            from ..services.email import send_email
-            html = (
-                f"<div style='font-family:Inter,Arial;max-width:540px;margin:0 auto;padding:24px'>"
-                f"<h2 style='color:#E4002B'>Welcome to VFast</h2>"
-                f"<p>Hi {welcome_name},</p>"
-                f"<p>Your VFast {role.replace('_',' ')} account is ready.</p>"
-                f"<p>Email: <b>{welcome_target}</b><br>Temporary password: <b>{password}</b></p>"
-                f"<p>Please log in and change it from your profile.</p></div>"
-            )
-            await send_email(welcome_target, "Welcome to VFast", html, tag="user-welcome")
+            from ..services.email import send_email, welcome_html
+            await send_email(welcome_target, "Welcome to VFast",
+                              welcome_html(welcome_name, role, welcome_target, password),
+                              tag="user-welcome")
         except Exception:
             pass
     return result
@@ -232,25 +239,66 @@ async def create_or_update_user(payload: dict, request: Request,
 
 @router.patch("/users/{user_id}")
 async def patch_user(user_id: str, payload: dict, request: Request,
-                      user=Depends(require_roles("super_admin"))):
-    """Super-admin-only: update name/role/password/active. Empty password = unchanged."""
+                      user=Depends(require_roles("super_admin", "admin"))):
+    """Super-admins can change anything. Admins can ONLY toggle `active` (deactivate/reactivate).
+    No user is ever hard-deleted — use `active=false` to disable accounts."""
     db = request.state.db
     existing = await db.users.find_one({"id": user_id})
     if not existing:
         raise HTTPException(status_code=404, detail="User not found")
+    actor_role = user.get("role")
     update: dict = {"updated_at": now_iso()}
-    if "name" in payload and payload["name"]:
-        update["name"] = payload["name"].strip()
-    if "role" in payload and payload["role"]:
-        if payload["role"] not in VALID_ROLES:
-            raise HTTPException(status_code=400, detail="Invalid role")
-        update["role"] = payload["role"]
-    if payload.get("password"):
-        update["password_hash"] = hash_password(payload["password"])
-    if "active" in payload:
+    if actor_role == "admin":
+        # Admins are limited to active toggle only.
+        if set(payload.keys()) - {"active"}:
+            raise HTTPException(status_code=403, detail="Admins can only activate/deactivate users. Ask a super admin to edit details.")
+        if "active" not in payload:
+            raise HTTPException(status_code=400, detail="Nothing to update")
         update["active"] = bool(payload["active"])
+    else:  # super_admin
+        if "name" in payload and payload["name"]:
+            update["name"] = payload["name"].strip()
+        if "role" in payload and payload["role"]:
+            if payload["role"] not in VALID_ROLES:
+                raise HTTPException(status_code=400, detail="Invalid role")
+            update["role"] = payload["role"]
+        if payload.get("password"):
+            update["password_hash"] = hash_password(payload["password"])
+        if "active" in payload:
+            update["active"] = bool(payload["active"])
+        for k in ("phone", "vehicle", "kyc", "rider_status"):
+            if k in payload:
+                update[k] = payload[k]
     await db.users.update_one({"id": user_id}, {"$set": update})
     await log_action(db, user, "user.patch", "user", user_id, {k: v for k, v in update.items() if k != "password_hash"})
+    return {"ok": True}
+
+
+@router.post("/users/{user_id}/reset-password")
+async def admin_reset_password(user_id: str, payload: dict, request: Request,
+                                user=Depends(require_roles("super_admin"))):
+    """Super-admin convenience to forcibly set a new password and (optionally) email it."""
+    db = request.state.db
+    new_pw = (payload.get("new_password") or "").strip()
+    if len(new_pw) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    existing = await db.users.find_one({"id": user_id})
+    if not existing:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one({"id": user_id},
+                              {"$set": {"password_hash": hash_password(new_pw),
+                                          "updated_at": now_iso()}})
+    await log_action(db, user, "user.reset_password", "user", user_id)
+    if payload.get("notify", True) and existing.get("email"):
+        try:
+            from ..services.email import send_email, welcome_html
+            await send_email(existing["email"], "Your VFast password has been reset",
+                              welcome_html(existing.get("name") or "there",
+                                           existing.get("role", "user"),
+                                           existing["email"], new_pw),
+                              tag="admin-reset")
+        except Exception:
+            pass
     return {"ok": True}
 
 

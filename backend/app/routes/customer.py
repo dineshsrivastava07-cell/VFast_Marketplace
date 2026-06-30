@@ -72,3 +72,27 @@ async def delete_address(addr_id: str, request: Request,
     db = request.state.db
     await db.addresses.delete_one({"id": addr_id, "user_id": user["id"]})
     return {"ok": True}
+
+
+@router.patch("/addresses/{addr_id}")
+async def patch_address(addr_id: str, payload: dict, request: Request,
+                         user: dict = Depends(get_current_user)):
+    db = request.state.db
+    existing = await db.addresses.find_one({"id": addr_id, "user_id": user["id"]})
+    if not existing:
+        raise HTTPException(404, "Address not found")
+    allowed = {"label", "flat", "area", "landmark", "city", "state", "pincode", "phone", "is_default"}
+    update = {k: payload[k] for k in payload if k in allowed}
+    if "pincode" in update:
+        pin = str(update["pincode"]).strip()
+        if len(pin) != 6 or not pin.isdigit():
+            raise HTTPException(400, "Invalid PIN code")
+        update["pincode"] = pin
+    if update.get("is_default"):
+        await db.addresses.update_many({"user_id": user["id"]},
+                                        {"$set": {"is_default": False}})
+    update["updated_at"] = now_iso()
+    await db.addresses.update_one({"id": addr_id, "user_id": user["id"]},
+                                   {"$set": update})
+    return await db.addresses.find_one({"id": addr_id, "user_id": user["id"]},
+                                        {"_id": 0})

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import { toast } from "sonner";
 
 const FLAGS = [
@@ -11,7 +12,17 @@ const FLAGS = [
   { k: "dpdp_consent_banner", label: "Show DPDP consent banner" },
 ];
 
+const EMAIL_TRIGGERS = [
+  { k: "order_placed", label: "Order placed (customer)" },
+  { k: "order_delivered", label: "Order delivered (customer)" },
+  { k: "user_welcome", label: "Welcome email when staff/seller/rider is created" },
+  { k: "password_reset", label: "Password reset link" },
+  { k: "otp_email", label: "Email OTP (in addition to SMS)" },
+];
+
 export default function AdminSettings() {
+  const { user } = useAuth();
+  const isSuper = user?.role === "super_admin";
   const [data, setData] = useState(null);
   const [tab, setTab] = useState("settings");
   const [templates, setTemplates] = useState([]);
@@ -26,6 +37,15 @@ export default function AdminSettings() {
   const saveSettings = async () => {
     await api.post("/admin/settings", { settings: data.settings, flags: data.flags });
     toast.success("Settings saved"); refresh();
+  };
+  const saveEmail = async () => {
+    const ec = data.email_config || {};
+    if (String(ec.api_key || "").startsWith("*")) {
+      delete ec.api_key; // keep existing
+    }
+    await api.post("/admin/settings", { email_config: ec });
+    toast.success("Email config saved");
+    refresh();
   };
 
   const saveTpl = async () => {
@@ -44,9 +64,10 @@ export default function AdminSettings() {
     <div className="space-y-4" data-testid="admin-settings-page">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="font-display text-2xl font-bold">App settings</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setTab("settings")} className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${tab==="settings"?"bg-[#E4002B] text-white":"bg-white border border-gray-200"}`}>General</button>
           <button onClick={() => setTab("flags")} className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${tab==="flags"?"bg-[#E4002B] text-white":"bg-white border border-gray-200"}`}>Feature flags</button>
+          <button data-testid="settings-tab-email" onClick={() => setTab("email")} className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${tab==="email"?"bg-[#E4002B] text-white":"bg-white border border-gray-200"}`}>Email config</button>
           <button onClick={() => setTab("templates")} className={`px-3 py-1.5 rounded-xl text-sm font-semibold ${tab==="templates"?"bg-[#E4002B] text-white":"bg-white border border-gray-200"}`}>Notification templates</button>
         </div>
       </div>
@@ -72,6 +93,43 @@ export default function AdminSettings() {
             </label>
           ))}
           <button data-testid="flags-save" onClick={saveSettings} className="btn-primary px-4 py-2 text-sm mt-3">Save flags</button>
+        </div>
+      )}
+
+      {tab === "email" && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3 text-sm" data-testid="email-config-panel">
+          <div className="text-xs text-gray-500">
+            VFast uses <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-[#E4002B] font-semibold">Resend</a> for transactional email.
+            Until an API key is saved, emails are <b>mocked</b> and logged to backend logs.
+          </div>
+          {!isSuper && <div className="text-xs bg-amber-50 border border-amber-100 text-amber-800 rounded-lg p-2">Read-only — only Super Admin can edit email credentials.</div>}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500">RESEND API Key (re_…)</span>
+              <input data-testid="email-api-key" type="password" disabled={!isSuper} value={data.email_config?.api_key || ""}
+                onChange={(e) => setData({ ...data, email_config: { ...(data.email_config || {}), api_key: e.target.value } })}
+                className="px-3 py-2 rounded-xl border border-gray-200 disabled:bg-gray-50" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500">From sender</span>
+              <input data-testid="email-from" disabled={!isSuper} value={data.email_config?.from || ""}
+                placeholder='VFast &lt;orders@vfast.co.in&gt;'
+                onChange={(e) => setData({ ...data, email_config: { ...(data.email_config || {}), from: e.target.value } })}
+                className="px-3 py-2 rounded-xl border border-gray-200 disabled:bg-gray-50" />
+            </label>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-600 mb-2">Triggers</div>
+            {EMAIL_TRIGGERS.map((t) => (
+              <label key={t.k} className="flex items-center gap-3 py-1">
+                <input data-testid={`email-trigger-${t.k}`} type="checkbox" disabled={!isSuper}
+                  checked={!!(data.email_config?.triggers || {})[t.k]}
+                  onChange={(e) => setData({ ...data, email_config: { ...(data.email_config || {}), triggers: { ...((data.email_config || {}).triggers || {}), [t.k]: e.target.checked } } })} />
+                <span className="text-xs">{t.label}</span>
+              </label>
+            ))}
+          </div>
+          {isSuper && <button data-testid="email-save" onClick={saveEmail} className="btn-primary px-4 py-2 text-sm">Save email config</button>}
         </div>
       )}
 

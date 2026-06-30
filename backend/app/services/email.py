@@ -1,8 +1,9 @@
-"""Resend transactional email service with mock fallback.
+"""Transactional email service (Resend) with DB-config + env fallback + mock log.
 
-Env vars:
-- EMAIL_API_KEY: Resend API key (starts with `re_...`)
-- EMAIL_FROM:    Verified sender (e.g. "VFast <orders@vfast.co.in>")
+Resolution order for credentials:
+1. DB settings document (`settings.email_config.api_key` / `from`)  — set via Admin UI
+2. Environment variables (EMAIL_API_KEY / EMAIL_FROM)
+3. Otherwise -> MOCK (logged to backend)
 """
 from __future__ import annotations
 
@@ -14,10 +15,25 @@ import httpx
 log = logging.getLogger("vfast.email")
 RESEND_URL = "https://api.resend.com/emails"
 
+# Cache mutated by `apply_email_config` from admin settings save.
+_RUNTIME_CFG: dict = {"api_key": "", "sender": ""}
+
+
+def apply_email_config(api_key: str | None, sender: str | None) -> None:
+    """Called by /admin/settings POST so changes take effect without restart."""
+    _RUNTIME_CFG["api_key"] = (api_key or "").strip()
+    _RUNTIME_CFG["sender"] = (sender or "").strip()
+
+
+def _resolve_creds() -> tuple[str, str]:
+    return (
+        _RUNTIME_CFG.get("api_key") or os.environ.get("EMAIL_API_KEY", ""),
+        _RUNTIME_CFG.get("sender") or os.environ.get("EMAIL_FROM", ""),
+    )
+
 
 async def send_email(to: str, subject: str, html: str, tag: str = "transactional") -> bool:
-    api_key = os.environ.get("EMAIL_API_KEY")
-    sender = os.environ.get("EMAIL_FROM")
+    api_key, sender = _resolve_creds()
     if not (api_key and sender) or not to:
         log.info("[MOCK EMAIL] tag=%s to=%s subject=%s", tag, to, subject)
         return True
@@ -77,5 +93,43 @@ def rider_onboarding_html(name: str) -> str:
       <p>Hi {name}, your rider account is active.</p>
       <p>Open the rider app, set yourself <b>Online</b>, and you&apos;ll start receiving delivery requests in serviceable PIN codes.</p>
       <p><a href="{base}/rider/login" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open Rider App</a></p>
+    </div>
+    """
+
+
+def password_reset_html(name: str, link: str) -> str:
+    return f"""
+    <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px">
+      <h2 style="color:#E4002B">Reset your VFast password</h2>
+      <p>Hi {name},</p>
+      <p>We received a request to reset your VFast staff password. Click the button below to set a new one — this link expires in 2 hours.</p>
+      <p><a href="{link}" style="background:#E4002B;color:white;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">Reset password</a></p>
+      <p style="font-size:12px;color:#888">If the button doesn't work, paste this URL in your browser:<br><code>{link}</code></p>
+      <p style="font-size:12px;color:#888">If you didn't request this, you can safely ignore this email.</p>
+    </div>
+    """
+
+
+def welcome_html(name: str, role: str, email: str, password: str | None = None) -> str:
+    base = os.environ.get("APP_URL", "https://vfast.co.in")
+    pw_block = f"<p>Temporary password: <b>{password}</b><br>Please log in and change it from your profile.</p>" if password else ""
+    return f"""
+    <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px">
+      <h2 style="color:#E4002B">Welcome to VFast</h2>
+      <p>Hi {name},</p>
+      <p>Your VFast {role.replace('_',' ')} account is ready.</p>
+      <p>Email: <b>{email}</b></p>
+      {pw_block}
+      <p><a href="{base}" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open VFast</a></p>
+    </div>
+    """
+
+
+def otp_html(code: str) -> str:
+    return f"""
+    <div style="font-family:Inter,Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;text-align:center">
+      <h2 style="color:#E4002B">Your VFast verification code</h2>
+      <div style="font-size:36px;letter-spacing:8px;font-weight:800;background:#FDE6EA;color:#E4002B;border-radius:12px;padding:18px;margin:14px 0">{code}</div>
+      <p style="color:#666;font-size:12px">Valid for 10 minutes. Don't share this code with anyone.</p>
     </div>
     """

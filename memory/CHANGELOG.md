@@ -1,0 +1,38 @@
+# VFast — Active session changelog (Feb 2026 — auth & UX hardening)
+
+## Auth refactor (Fixes 1–11)
+- **Fix 1 — Role-aware logouts**:
+    - Customers logout from Header → `/`
+    - Staff/seller/rider logout from Header → `/admin/login`
+    - AdminLayout, SellerLayout, RiderApp keep their own logout → `/admin/login`, `/seller/login`, `/rider/login`.
+- **Fix 2 — Customer vs Staff login pages fully separated**:
+    - `Login.jsx` (customer): phone-OTP + Google customer button + footer link `Staff/Admin/Rider/Seller? Sign in here →`.
+    - `AdminLogin.jsx`: email/password + Google staff button + `Forgot password?` modal + `I'm a customer →` link.
+- **Fix 3 — Phone placeholder**: `+91` prefix only, helper text "Enter your 10-digit mobile".
+- **Fix 4 — Forgot password / Resend OTP**:
+    - Staff: `POST /api/auth/password-reset/request` + `/password-reset/confirm` + `/reset-password?token=` page.
+    - Customer: explicit `Resend OTP` button on step 2.
+- **Fix 5 — Super-admin convenience**:
+    - Force-reset modal in `AdminUsers.jsx` → `POST /api/admin/users/{id}/reset-password`.
+    - Per-row rights chips (compact `ShieldCheck` chips) pulled from new `/api/admin/rbac/summary` endpoint.
+- **Fix 6 — No deletes**:
+    - `PATCH /api/admin/users/{id}` now allows role=admin to ONLY toggle `active`. Super_admin keeps full edit.
+    - There is no `DELETE /api/admin/users/{id}` endpoint at all.
+- **Fix 7 — Customer address edit**:
+    - `PATCH /api/customer/addresses/{id}` added.
+    - Profile shows Edit + Remove per address with full edit form.
+- **Fix 8 — Rider creation merged into AdminUsers**:
+    - AdminUsers modal exposes rider extras (phone/vehicle/PAN/license/KYC) when role=delivery_partner.
+    - AdminRiders no longer has Add modal; an info banner + link points to `/admin/users`.
+    - `POST /api/admin/users` accepts rider-specific fields for `delivery_partner`.
+- **Fix 9 — Google Sign-In (graceful)**:
+    - `GET /api/auth/google/config` exposes `{enabled, client_id}`.
+    - `POST /api/auth/google/customer` and `/api/auth/google/staff` verify the ID token using `google-auth` and return a JWT.
+    - Staff endpoint enforces the V-Mart allowlist (`@vmart.co.in`, `@vmartretail.com`, `@limeroad.com`, two named gmail addresses).
+    - Frontend `<GoogleSignInButton>` renders a disabled "Coming soon" pill when `GOOGLE_CLIENT_ID` env var is missing.
+- **Fix 10 — Email configuration UI**:
+    - `email_config` block on `settings.global` with `api_key`, `from`, `triggers`.
+    - Super Admin can paste a Resend API key + sender from `AdminSettings → Email config` tab; backend applies it at runtime via `apply_email_config`.
+    - Mock fallback unchanged (logs `[MOCK EMAIL]`).
+    - Order placed → confirmation email already wired in `orders.py`. Welcome email + password reset emails wired in `auth.py` & `admin.py`.
+- **Fix 11**: Full pass-through covered by testing agent invocation.

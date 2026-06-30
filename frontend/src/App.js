@@ -21,6 +21,7 @@ import Checkout from "./pages/Checkout";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Profile from "./pages/Profile";
+import PasswordReset from "./pages/PasswordReset";
 
 import AdminLogin from "./pages/Admin/AdminLogin";
 import AdminLayout from "./pages/Admin/AdminLayout";
@@ -97,6 +98,7 @@ function App() {
 
                   {/* Admin */}
                   <Route path="/admin/login" element={<AdminLogin />} />
+                  <Route path="/reset-password" element={<PasswordReset />} />
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminDashboard />} />
                     <Route path="orders" element={<AdminOrders />} />

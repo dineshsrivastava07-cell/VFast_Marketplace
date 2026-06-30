@@ -93,24 +93,28 @@ export default function Header() {
               <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100 rounded-xl shadow-lg p-1 z-50">
                 {!user ? (
                   <>
-                    <Link to="/login" data-testid="menu-login" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Login / Sign up</Link>
+                    <Link to="/login" data-testid="menu-login" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Customer login</Link>
                     <Link to="/admin/login" data-testid="menu-admin-login" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Staff / Admin login</Link>
                   </>
-                ) : (
+                ) : user.role === "customer" ? (
                   <>
                     <Link to="/profile" data-testid="menu-profile" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My profile</Link>
                     <Link to="/orders" data-testid="menu-orders" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Orders</Link>
                     <Link to="/wishlist" data-testid="menu-wishlist" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">My Wishlist</Link>
+                    <button data-testid="menu-logout" onClick={() => { logout(); setMenuOpen(false); navigate("/"); }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Logout</button>
+                  </>
+                ) : (
+                  <>
                     {(user.role === "super_admin" || user.role === "admin" || user.role === "operations") && (
-                      <Link to="/admin" data-testid="menu-admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Admin Panel</Link>
+                      <Link to="/admin" data-testid="menu-admin" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Open Admin Panel</Link>
                     )}
                     {user.role === "seller" && (
-                      <Link to="/seller" data-testid="menu-seller" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Seller Portal</Link>
+                      <Link to="/seller" data-testid="menu-seller" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Open Seller Portal</Link>
                     )}
                     {user.role === "delivery_partner" && (
-                      <Link to="/rider" data-testid="menu-rider" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Rider App</Link>
+                      <Link to="/rider" data-testid="menu-rider" className="block px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Open Rider App</Link>
                     )}
-                    <button data-testid="menu-logout" onClick={() => { logout(); setMenuOpen(false); }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Logout</button>
+                    <button data-testid="menu-logout" onClick={() => { logout(); setMenuOpen(false); navigate("/admin/login"); }} className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50">Logout</button>
                   </>
                 )}
               </div>
