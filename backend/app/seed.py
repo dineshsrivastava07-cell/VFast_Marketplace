@@ -388,6 +388,9 @@ DEMO_USERS = [
     ("OPS_EMAIL", "OPS_PASSWORD", "operations", "Operations User"),
     ("SELLER_EMAIL", "SELLER_PASSWORD", "seller", "VFast Seller"),
     ("RIDER_EMAIL", "RIDER_PASSWORD", "delivery_partner", "VFast Rider"),
+    # Real staff accounts — set these env vars in Emergent Secrets
+    ("SUPER_ADMIN2_EMAIL", "SUPER_ADMIN2_PASSWORD", "super_admin", "Dinesh Srivastava"),
+    ("SUPER_ADMIN3_EMAIL", "SUPER_ADMIN3_PASSWORD", "super_admin", "Pawan Prajapati"),
 ]
 
 

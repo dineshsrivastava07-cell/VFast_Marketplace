@@ -117,6 +117,23 @@ export default function AdminCatalog() {
         <div className="bg-white border border-gray-100 rounded-2xl p-4 max-w-xl space-y-3">
           <div className="font-display font-bold">Bulk import products via CSV</div>
           <div className="text-xs text-gray-500">CSV columns: <code>slug,name,brand,category_slug,subcategory_slug,price,mrp,pack_size,unit_value,unit,veg_type,stock,reorder_level,eta_minutes,image,hsn_code,fssai_no</code></div>
+          <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-2">
+            <b>category_slug</b> must match an existing top-level category slug — one of: <code>food-beverages</code>, <code>staples</code>, <code>personal-care</code>, <code>home-care</code>, <code>health-wellness</code>, <code>household-gm</code>.
+          </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            <button data-testid="csv-template-btn" onClick={() => {
+              const headers = "slug,name,brand,category_slug,subcategory_slug,price,mrp,pack_size,unit_value,unit,veg_type,stock,reorder_level,eta_minutes,image,hsn_code,fssai_no";
+              const rows = [
+                "sample-product-1,Sample Atta 1kg,Aashirvaad,staples,atta-flour,75,90,1 kg,1,kg,veg,100,10,12,https://images.pexels.com/photos/4198015/pexels-photo-4198015.jpeg,1101,10013011000567",
+                "sample-product-2,Sample Milk 500ml,Amul,food-beverages,dairy-eggs,35,40,500 ml,500,ml,veg,50,5,10,https://images.pexels.com/photos/248412/pexels-photo-248412.jpeg,0401,10012011000123",
+              ];
+              const csvBody = [headers, ...rows].join("\n");
+              const blob = new Blob([csvBody], { type: "text/csv;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = "vfast-products-template.csv"; a.click();
+              URL.revokeObjectURL(url);
+            }} className="px-3 py-2 rounded-xl bg-gray-900 text-white text-sm">Download CSV template</button>
+          </div>
           <input data-testid="csv-file" type="file" accept=".csv" onChange={(e) => setCsv(e.target.files?.[0])} />
           <button data-testid="csv-import-btn" onClick={importCsv} className="btn-primary px-3 py-2 text-sm">Import</button>
         </div>

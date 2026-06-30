@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation as useLoc } from "../../context/LocationContext";
 import { Loader2 } from "lucide-react";
 import api from "../../lib/api";
@@ -8,8 +8,21 @@ export default function LocationPicker({ open, onClose }) {
   const [val, setVal] = useState(pincode || "");
   const [contact, setContact] = useState("");
   const [notified, setNotified] = useState(false);
+  const resultRef = useRef(null);
+
+  // Keep the input value in sync with the context (e.g. when pincode was set
+  // elsewhere — geolocation, prior visit — and the modal re-opens).
+  useEffect(() => { setVal(pincode || ""); }, [pincode]);
+
+  // Auto-scroll the serviceability result into view on mobile.
+  useEffect(() => {
+    if (!checking && serviceability && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [checking, serviceability]);
 
   if (!open) return null;
+
   const submit = (e) => {
     e.preventDefault();
     if (/^\d{6}$/.test(val)) setPincode(val);
@@ -38,7 +51,7 @@ export default function LocationPicker({ open, onClose }) {
           <button type="submit" data-testid="pincode-check-btn" className="btn-primary px-4 py-2.5 text-sm">Check</button>
         </form>
 
-        <div className="mt-4 min-h-[60px]">
+        <div ref={resultRef} className="mt-4 min-h-[60px]">
           {checking && (
             <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Checking...</div>
           )}

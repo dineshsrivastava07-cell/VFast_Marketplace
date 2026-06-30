@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from ..models import PaymentVerifyIn, PincodeIn, QRCodeIn, new_id, now_iso
 from ..security import require_roles, can_admin, hash_password  # noqa: F401
+from ..services.audit import log_action
+
+VALID_ROLES = {"super_admin", "admin", "operations", "seller", "delivery_partner", "customer"}
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -169,6 +172,62 @@ async def list_users(request: Request, _u=Depends(require_roles("super_admin", "
     db = request.state.db
     users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(500)
     return users
+
+
+@router.post("/users")
+async def create_or_update_user(payload: dict, request: Request,
+                                  user=Depends(require_roles("super_admin"))):
+    """Super-admin-only: create a user by email or update if email exists.
+
+    Body: {email, password, name, role}. Password is hashed server-side. The
+    `email` field acts as the unique key — a matching record will be updated.
+    """
+    db = request.state.db
+    email = (payload.get("email") or "").strip().lower()
+    password = payload.get("password") or ""
+    name = (payload.get("name") or "").strip() or email.split("@")[0].title()
+    role = payload.get("role")
+    if not email or not password or role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="email, password and a valid role are required")
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        await db.users.update_one(
+            {"id": existing["id"]},
+            {"$set": {"name": name, "role": role,
+                       "password_hash": hash_password(password),
+                       "updated_at": now_iso()}},
+        )
+        await log_action(db, user, "user.update", "user", existing["id"], {"role": role, "name": name})
+        return {"ok": True, "id": existing["id"], "action": "updated"}
+    new_user = {
+        "id": new_id(), "email": email, "name": name, "role": role,
+        "password_hash": hash_password(password), "created_at": now_iso(),
+    }
+    await db.users.insert_one(new_user.copy())
+    await log_action(db, user, "user.create", "user", new_user["id"], {"role": role, "email": email})
+    return {"ok": True, "id": new_user["id"], "action": "created"}
+
+
+@router.patch("/users/{user_id}")
+async def patch_user(user_id: str, payload: dict, request: Request,
+                      user=Depends(require_roles("super_admin"))):
+    """Super-admin-only: update name/role/password. Empty password = unchanged."""
+    db = request.state.db
+    existing = await db.users.find_one({"id": user_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found")
+    update: dict = {"updated_at": now_iso()}
+    if "name" in payload and payload["name"]:
+        update["name"] = payload["name"].strip()
+    if "role" in payload and payload["role"]:
+        if payload["role"] not in VALID_ROLES:
+            raise HTTPException(status_code=400, detail="Invalid role")
+        update["role"] = payload["role"]
+    if payload.get("password"):
+        update["password_hash"] = hash_password(payload["password"])
+    await db.users.update_one({"id": user_id}, {"$set": update})
+    await log_action(db, user, "user.patch", "user", user_id, {k: v for k, v in update.items() if k != "password_hash"})
+    return {"ok": True}
 
 
 # ---------------- Products quick CRUD ---------------- #
