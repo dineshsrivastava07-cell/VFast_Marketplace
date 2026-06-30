@@ -58,22 +58,24 @@ def order_confirmation_html(order_no: str, total: float, items: list, customer_n
 
 
 def seller_approval_html(name: str) -> str:
+    base = os.environ.get("APP_URL", "https://vfast.co.in")
     return f"""
     <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px">
       <h2 style="color:#E4002B">Welcome to VFast Marketplace</h2>
       <p>Hi {name},</p>
       <p>Your seller KYC has been approved. You can now log in to the Seller Portal and start listing products.</p>
-      <p><a href="https://vfast.co.in/seller/login" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open Seller Portal</a></p>
+      <p><a href="{base}/seller/login" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open Seller Portal</a></p>
     </div>
     """
 
 
 def rider_onboarding_html(name: str) -> str:
+    base = os.environ.get("APP_URL", "https://vfast.co.in")
     return f"""
     <div style="font-family:Inter,Arial,sans-serif;max-width:540px;margin:0 auto;padding:24px">
       <h2 style="color:#E4002B">Welcome to VFast Rider</h2>
       <p>Hi {name}, your rider account is active.</p>
-      <p>Open the rider app, set yourself <b>Online</b>, and you'll start receiving delivery requests in serviceable PIN codes.</p>
-      <p><a href="https://vfast.co.in/rider/login" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open Rider App</a></p>
+      <p>Open the rider app, set yourself <b>Online</b>, and you&apos;ll start receiving delivery requests in serviceable PIN codes.</p>
+      <p><a href="{base}/rider/login" style="background:#E4002B;color:white;padding:10px 18px;border-radius:8px;text-decoration:none">Open Rider App</a></p>
     </div>
     """
